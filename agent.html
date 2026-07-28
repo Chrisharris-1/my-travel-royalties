@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Agent Portal — My Travel Royalties</title>
+<link rel="stylesheet" href="ota.css">
+<style>
+  body{ background:var(--bg); }
+  .agent-shell{ max-width:960px; margin:0 auto; padding:32px 20px 80px; }
+  .agent-header{ display:flex; align-items:center; gap:14px; padding:20px 0 28px; border-bottom:1px solid var(--line); margin-bottom:28px; }
+  .agent-header img{ height:34px; }
+  .agent-header h1{ font-family:var(--head); font-size:20px; }
+  .agent-header .pill{ margin-left:auto; background:var(--blue-dark); color:#f3ede0; }
+  .gate-card{ max-width:420px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:32px; }
+  .gate-card h2{ font-family:var(--head); margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<div id="agent-gate" class="gate-card">
+  <h2>Agent sign-in</h2>
+  <p class="muted" style="font-size:13.5px; margin-bottom:16px;">Internal tool — for My Travel Royalties sales agents only.</p>
+  <form id="agent-gate-form">
+    <div class="dfl-field" style="margin-bottom:12px;"><label>Your name</label><input id="agent-name-input" required placeholder="Jane Smith"></div>
+    <div class="dfl-field" style="margin-bottom:16px;"><label>Agent access code</label><input id="agent-code-input" type="password" placeholder="Ask your manager if you don't have one"></div>
+    <button type="submit" class="btn btn-orange" style="width:100%;">Enter Agent Portal</button>
+  </form>
+</div>
+
+<div id="agent-shell" class="agent-shell" style="display:none;">
+  <div class="agent-header">
+    <img src="logo.png" alt="My Travel Royalties">
+    <h1>Agent Portal — Build a Quote</h1>
+    <span class="pill" id="agent-name-pill"></span>
+  </div>
+
+  <p class="muted" style="margin-bottom:20px;">Search live fares, add your markup, and send the customer a verification link. Nothing is booked until the customer confirms and you take it to the next step.</p>
+
+  <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(6,33,79,.18);">
+    <div class="search-body">
+      <div class="search-row">
+        <div class="field dfl-suggest-wrap"><label>From</label><input id="agent-from-input" value="New York (JFK)" data-code="JFK" autocomplete="off"><div id="agent-from-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+        <div class="field dfl-suggest-wrap"><label>To</label><input id="agent-to-input" value="London (LHR)" data-code="LHR" autocomplete="off"><div id="agent-to-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+        <div class="field"><label>Depart</label><input type="date" id="agent-depart-input" value="2026-09-15"></div>
+        <div class="field"><label>Return (optional)</label><input type="date" id="agent-return-input" value="2026-09-22"></div>
+      </div>
+      <div class="search-row mt-8">
+        <div class="field">
+          <label>Cabin</label>
+          <select id="agent-cabin-select" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;">
+            <option value="economy">Economy</option>
+            <option value="premium_economy">Premium Economy</option>
+            <option value="business">Business</option>
+            <option value="first">First</option>
+          </select>
+        </div>
+        <button type="button" id="agent-search-btn" class="btn btn-orange">Search Live Fares</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="agent-flight-status" class="mt-16"></div>
+  <div id="agent-flight-results" class="mt-16"></div>
+</div>
+
+<div id="agent-quote-modal" class="dfl-modal-overlay" style="display:none;">
+  <div class="dfl-modal">
+    <button type="button" id="agent-quote-modal-close" class="dfl-modal-close">✕</button>
+    <div id="agent-quote-modal-body"></div>
+  </div>
+</div>
+
+<script src="duffel-app.js"></script>
+<script src="agent-app.js"></script>
+</body>
+</html>

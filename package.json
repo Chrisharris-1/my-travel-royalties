@@ -1,0 +1,9 @@
+{
+  "name": "my-travel-royalties",
+  "private": true,
+  "version": "1.0.0",
+  "description": "My Travel Royalties — static OTA site with Duffel-powered Netlify Functions backend.",
+  "dependencies": {
+    "@netlify/blobs": "*"
+  }
+}

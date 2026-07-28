@@ -505,11 +505,82 @@ function dflAirportCode(inputEl){
     });
   }
 
+  function renderQuote(quote){
+    const segmentsHtml = quote.offer.slices.map(s => {
+      const first = s.segments[0], last = s.segments[s.segments.length-1];
+      return `<div class="dfl-segment">
+        <b>${first.origin.iata_code} → ${last.destination.iata_code}</b>
+        <div class="muted" style="font-size:13px; margin-top:4px;">${dflFmtDate(first.departing_at)} · ${dflFmtTime(first.departing_at)} – ${dflFmtTime(last.arriving_at)}</div>
+      </div>`;
+    }).join('');
+    const p = quote.passenger;
+    const statusLabel = {
+      pending_verification: 'Awaiting your confirmation',
+      confirmed_by_customer: 'Confirmed — being booked by your advisor',
+      cancelled: 'Cancelled',
+    }[quote.status] || quote.status;
+
+    resultEl.innerHTML = `
+      <div class="result-card" style="grid-template-columns:1fr;">
+        <div>
+          <div class="result-airline">Quote ${quote.mtrRef} <span class="pill pill-blue" style="margin-left:8px;">${statusLabel}</span></div>
+          <div class="muted" style="font-size:13px; margin:4px 0 10px;">${p.given_name} ${p.family_name} · ${dflFmtMoney(quote.totalAmount, quote.totalCurrency)}</div>
+          ${segmentsHtml}
+          <div id="quote-action-status"></div>
+          ${quote.status === 'pending_verification' ? `
+            <div class="dfl-trip-actions">
+              <button type="button" class="btn btn-orange btn-sm" id="quote-confirm-btn">Everything is correct — Confirm</button>
+              <button type="button" class="btn btn-outline btn-sm" id="quote-cancel-btn">Something's wrong</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    const confirmBtn = document.getElementById('quote-confirm-btn');
+    if(confirmBtn) confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true;
+      try {
+        await dflApi('quotes', { method: 'POST', body: { action: 'confirm', ref: quote.mtrRef } });
+        document.getElementById('quote-action-status').innerHTML = `<div class="dfl-alert dfl-alert-success">Confirmed — your travel advisor will complete the booking.</div>`;
+        confirmBtn.style.display = 'none';
+        const cancelBtn = document.getElementById('quote-cancel-btn');
+        if(cancelBtn) cancelBtn.style.display = 'none';
+      } catch(err){
+        document.getElementById('quote-action-status').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+        confirmBtn.disabled = false;
+      }
+    });
+    const cancelBtn = document.getElementById('quote-cancel-btn');
+    if(cancelBtn) cancelBtn.addEventListener('click', async () => {
+      cancelBtn.disabled = true;
+      try {
+        await dflApi('quotes', { method: 'POST', body: { action: 'cancel', ref: quote.mtrRef } });
+        document.getElementById('quote-action-status').innerHTML = `<div class="dfl-alert dfl-alert-info">Flagged as incorrect — your travel advisor has been notified.</div>`;
+        if(confirmBtn) confirmBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+      } catch(err){
+        document.getElementById('quote-action-status').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+        cancelBtn.disabled = false;
+      }
+    });
+  }
+
   lookupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const ref = refInput.value.trim();
     if(!ref) return;
     resultEl.innerHTML = `<div class="dfl-center"><div class="dfl-spinner"></div><p class="muted mt-8">Looking up your trip…</p></div>`;
+
+    if(ref.toUpperCase().startsWith('MTR-')){
+      try {
+        const res = await dflApi('quotes?ref=' + encodeURIComponent(ref.toUpperCase()));
+        renderQuote(res.data);
+      } catch(err){
+        resultEl.innerHTML = `<div class="dfl-alert dfl-alert-info">No quote found for reference "${ref}".</div>`;
+      }
+      return;
+    }
+
     try {
       const res = await dflApi('orders?booking_reference=' + encodeURIComponent(ref));
       const orders = res.data || [];
@@ -524,4 +595,93 @@ function dflAirportCode(inputEl){
   });
 
   if(params.get('ref')) lookupForm.dispatchEvent(new Event('submit'));
+})();
+
+/* =========================================================
+   VERIFY BOOKING PAGE — customer reviews & confirms an agent quote
+   ========================================================= */
+(function(){
+  const root = document.getElementById('verify-booking-root');
+  if(!root) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const ref = (params.get('ref') || '').toUpperCase();
+  if(!ref){
+    root.innerHTML = `<div class="dfl-alert dfl-alert-error">No booking reference was provided in this link.</div>`;
+    return;
+  }
+
+  function render(quote){
+    const segmentsHtml = quote.offer.slices.map(s => {
+      const first = s.segments[0], last = s.segments[s.segments.length-1];
+      return `<div class="dfl-segment"><b>${first.origin.iata_code} → ${last.destination.iata_code}</b><div class="muted" style="font-size:13px; margin-top:4px;">${dflFmtDate(first.departing_at)} · ${dflFmtTime(first.departing_at)} – ${dflFmtTime(last.arriving_at)}</div></div>`;
+    }).join('');
+    const p = quote.passenger;
+    let banner = '';
+    if(quote.status === 'confirmed_by_customer') banner = `<div class="dfl-alert dfl-alert-success">You already confirmed this on ${new Date(quote.updatedAt).toLocaleString()}. Your travel advisor will complete the booking shortly.</div>`;
+    if(quote.status === 'cancelled') banner = `<div class="dfl-alert dfl-alert-info">This quote was cancelled.</div>`;
+
+    root.innerHTML = `
+      <div class="result-card" style="grid-template-columns:1fr;">
+        <div>
+          ${banner}
+          ${segmentsHtml}
+          <div class="dfl-order-summary">
+            <div><b>Passenger:</b> ${p.given_name} ${p.family_name}</div>
+            <div><b>Date of birth:</b> ${p.born_on}</div>
+            <div><b>Email:</b> ${p.email}</div>
+            <div><b>Phone:</b> ${p.phone_number}</div>
+          </div>
+          <div style="font-size:22px; font-weight:700; margin:14px 0;">${dflFmtMoney(quote.totalAmount, quote.totalCurrency)}</div>
+          <div class="muted" style="font-size:12px; margin-bottom:14px;">Reference: ${quote.mtrRef}</div>
+          ${quote.status === 'pending_verification' ? `
+            <div class="dfl-trip-actions">
+              <button type="button" class="btn btn-orange" id="verify-confirm-btn">Everything is correct — Confirm</button>
+              <button type="button" class="btn btn-outline" id="verify-cancel-btn">Something's wrong</button>
+            </div>
+          ` : ''}
+          <div id="verify-action-status" class="mt-16"></div>
+        </div>
+      </div>
+    `;
+
+    const confirmBtn = document.getElementById('verify-confirm-btn');
+    if(confirmBtn) confirmBtn.addEventListener('click', async () => {
+      confirmBtn.disabled = true; confirmBtn.textContent = 'Confirming…';
+      try {
+        await dflApi('quotes', { method: 'POST', body: { action: 'confirm', ref } });
+        document.getElementById('verify-action-status').innerHTML = `<div class="dfl-alert dfl-alert-success">Thank you — confirmed. Your travel advisor will complete the booking and send your final e-ticket.</div>`;
+        confirmBtn.style.display = 'none';
+        const cancelBtn = document.getElementById('verify-cancel-btn');
+        if(cancelBtn) cancelBtn.style.display = 'none';
+      } catch(err){
+        document.getElementById('verify-action-status').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+        confirmBtn.disabled = false; confirmBtn.textContent = 'Everything is correct — Confirm';
+      }
+    });
+    const cancelBtn = document.getElementById('verify-cancel-btn');
+    if(cancelBtn) cancelBtn.addEventListener('click', async () => {
+      cancelBtn.disabled = true;
+      try {
+        await dflApi('quotes', { method: 'POST', body: { action: 'cancel', ref } });
+        document.getElementById('verify-action-status').innerHTML = `<div class="dfl-alert dfl-alert-info">Got it — flagged as incorrect. Please also reply to the email you received so your advisor knows what to fix.</div>`;
+        const confirmBtn2 = document.getElementById('verify-confirm-btn');
+        if(confirmBtn2) confirmBtn2.style.display = 'none';
+        cancelBtn.style.display = 'none';
+      } catch(err){
+        document.getElementById('verify-action-status').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+        cancelBtn.disabled = false;
+      }
+    });
+  }
+
+  (async function load(){
+    root.innerHTML = `<div class="dfl-center"><div class="dfl-spinner"></div><p class="muted mt-8">Loading your quote…</p></div>`;
+    try {
+      const res = await dflApi('quotes?ref=' + encodeURIComponent(ref));
+      render(res.data);
+    } catch(err){
+      root.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+  })();
 })();
