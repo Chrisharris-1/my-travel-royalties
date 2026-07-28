@@ -74,62 +74,10 @@ document.querySelectorAll('[data-go-cars]').forEach(f => f.addEventListener('sub
 document.querySelectorAll('[data-go-deals]').forEach(f => f.addEventListener('submit', e => { e.preventDefault(); window.location.href = 'deals.html'; }));
 
 /* =========================================================
-   FLIGHTS — filters + mock results
+   FLIGHTS — now powered by the live Duffel API.
+   See duffel-app.js for real search/booking logic.
    ========================================================= */
 function fmtUSD(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
-
-const flightResults = document.getElementById('flight-results');
-if(flightResults){
-  const AIRLINES = ["SkyBridge Air","Continental Prime","Meridian Atlantic","Aurora Air","Peregrine Airways","Northline Express"];
-  const baseData = AIRLINES.map((name, i) => ({
-    name,
-    stops: i % 3 === 0 ? 'Nonstop' : (i % 3 === 1 ? '1 stop' : '2 stops'),
-    dur: 6 + (i % 4),
-    price: 340 + i * 65 + (i % 2 ? 40 : 0),
-  }));
-
-  function render(sortBy, maxPrice, stopFilter){
-    let rows = baseData.filter(r => r.price <= maxPrice && (stopFilter === 'any' || r.stops === stopFilter));
-    if(sortBy === 'price') rows.sort((a,b) => a.price - b.price);
-    if(sortBy === 'duration') rows.sort((a,b) => a.dur - b.dur);
-    flightResults.innerHTML = rows.length ? rows.map(r => `
-      <div class="result-card">
-        <div>
-          <div class="result-airline">${r.name}</div>
-          <div class="result-route">JFK 08:${(10+r.dur)%60 < 10 ? '0'+(10+r.dur)%60 : (10+r.dur)%60} → LHR · ${r.dur}h ${r.dur*7 % 60}m · ${r.stops}</div>
-          <div class="result-tags">
-            <span class="pill pill-blue">Free cancellation</span>
-            <span class="pill pill-green">Wi-Fi onboard</span>
-          </div>
-        </div>
-        <div class="result-price-block">
-          <div class="result-price">${fmtUSD(r.price)}</div>
-          <div class="muted" style="font-size:12px;">round trip, per traveler</div>
-          <button class="btn btn-orange btn-sm mt-12">Select</button>
-        </div>
-      </div>
-    `).join('') : `<p class="muted center" style="padding:40px 0;">No flights match these filters — try widening your price range.</p>`;
-    document.getElementById('result-count').textContent = rows.length;
-  }
-
-  const priceSlider = document.getElementById('price-range');
-  const priceLabel = document.getElementById('price-range-label');
-  const sortSelect = document.getElementById('sort-select');
-  const stopInputs = document.querySelectorAll('input[name="stops"]');
-
-  function currentStopFilter(){
-    const checked = Array.from(stopInputs).find(i => i.checked);
-    return checked ? checked.value : 'any';
-  }
-  function refresh(){
-    render(sortSelect ? sortSelect.value : 'price', priceSlider ? Number(priceSlider.value) : 5000, currentStopFilter());
-    if(priceLabel) priceLabel.textContent = fmtUSD(priceSlider.value);
-  }
-  if(priceSlider) priceSlider.addEventListener('input', refresh);
-  if(sortSelect) sortSelect.addEventListener('change', refresh);
-  stopInputs.forEach(i => i.addEventListener('change', refresh));
-  refresh();
-}
 
 /* =========================================================
    HOTELS — filters + mock results

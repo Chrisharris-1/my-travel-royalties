@@ -42,8 +42,8 @@
 
 <div class="page-header">
   <div class="wrap">
-    <h1>Flights to London</h1>
-    <p>JFK → LHR · Sep 15 – Sep 22 · 1 traveler · Economy</p>
+    <h1 id="flights-heading">Flights to London</h1>
+    <p id="flights-subheading">JFK → LHR · Sep 15 – Sep 22 · 1 traveler · Economy</p>
   </div>
 </div>
 
@@ -52,11 +52,11 @@
     <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(6,33,79,.18);">
       <div class="search-body">
         <div class="search-row">
-          <div class="field"><label>From</label><input value="New York (JFK)"></div>
-          <div class="field"><label>To</label><input value="London (LHR)"></div>
-          <div class="field"><label>Depart</label><input type="date" value="2026-09-15"></div>
-          <div class="field"><label>Return</label><input type="date" value="2026-09-22"></div>
-          <button type="button" class="btn btn-orange">Update Search</button>
+          <div class="field dfl-suggest-wrap"><label>From</label><input id="from-input" value="New York (JFK)" data-code="JFK" autocomplete="off"><div id="from-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+          <div class="field dfl-suggest-wrap"><label>To</label><input id="to-input" value="London (LHR)" data-code="LHR" autocomplete="off"><div id="to-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+          <div class="field"><label>Depart</label><input type="date" id="depart-input" value="2026-09-15"></div>
+          <div class="field"><label>Return</label><input type="date" id="return-input" value="2026-09-22"></div>
+          <button type="button" id="update-search-btn" class="btn btn-orange">Update Search</button>
         </div>
       </div>
     </div>
@@ -82,27 +82,26 @@
       </div>
       <div class="filter-group">
         <h4>Cabin</h4>
-        <label class="check-row"><span><input type="checkbox" checked> Economy</span></label>
-        <label class="check-row"><span><input type="checkbox"> Premium Economy</span></label>
-        <label class="check-row"><span><input type="checkbox"> Business</span></label>
-        <label class="check-row"><span><input type="checkbox"> First</span></label>
+        <label class="check-row"><span><input type="radio" name="cabin" value="economy" checked> Economy</span></label>
+        <label class="check-row"><span><input type="radio" name="cabin" value="premium_economy"> Premium Economy</span></label>
+        <label class="check-row"><span><input type="radio" name="cabin" value="business"> Business</span></label>
+        <label class="check-row"><span><input type="radio" name="cabin" value="first"> First</span></label>
       </div>
-      <div class="filter-group">
+      <div class="filter-group" id="airline-filter-group" style="display:none;">
         <h4>Airlines</h4>
-        <label class="check-row"><span><input type="checkbox" checked> SkyBridge Air</span><span class="count">142</span></label>
-        <label class="check-row"><span><input type="checkbox" checked> Continental Prime</span><span class="count">98</span></label>
-        <label class="check-row"><span><input type="checkbox" checked> Meridian Atlantic</span><span class="count">76</span></label>
+        <div id="airline-filter-list"></div>
       </div>
     </aside>
 
     <div>
       <div class="result-list-head">
-        <div><b id="result-count">6</b> <span class="muted">flights found</span></div>
+        <div><b id="result-count">0</b> <span class="muted">flights found</span></div>
         <select id="sort-select" class="field" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 14px; font-size:14px;">
           <option value="price">Sort: Price (low to high)</option>
           <option value="duration">Sort: Duration (shortest)</option>
         </select>
       </div>
+      <div id="flight-status"></div>
       <div id="flight-results"></div>
     </div>
 
@@ -128,6 +127,14 @@
   </div>
 </footer>
 
+<div id="booking-modal" class="dfl-modal-overlay" style="display:none;">
+  <div class="dfl-modal">
+    <button type="button" id="booking-modal-close" class="dfl-modal-close">✕</button>
+    <div id="booking-modal-body"></div>
+  </div>
+</div>
+
 <script src="ota-main.js"></script>
+<script src="duffel-app.js"></script>
 </body>
 </html>

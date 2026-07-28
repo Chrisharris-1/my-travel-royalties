@@ -354,3 +354,36 @@ h1,h2,h3,h4{ font-family:var(--head); font-weight:700; color:var(--ink); letter-
 .step-line{ width:36px; height:1px; background:#3d3324; }
 .app-step{ display:none; }
 .app-step.active{ display:block; }
+
+/* =========================================================
+   DUFFEL LIVE BOOKING — modal, alerts, autocomplete, spinner
+   ========================================================= */
+.dfl-modal-overlay{ position:fixed; inset:0; background:rgba(12,9,6,.55); z-index:900; display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+.dfl-modal{ background:var(--card); border-radius:12px; max-width:560px; width:100%; padding:32px; position:relative; box-shadow:0 30px 60px -20px rgba(12,9,6,.4); }
+.dfl-modal-close{ position:absolute; top:16px; right:16px; font-size:16px; color:var(--slate); width:32px; height:32px; border-radius:50%; }
+.dfl-modal-close:hover{ background:var(--bg); }
+.dfl-modal h3{ font-family:var(--head); font-size:22px; margin-bottom:4px; }
+.dfl-field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.dfl-field{ display:flex; flex-direction:column; gap:6px; }
+.dfl-field label{ font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--slate); font-weight:700; }
+.dfl-field input, .dfl-field select{ border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; background:#fff; }
+.dfl-field input:focus, .dfl-field select:focus{ outline:none; border-color:var(--orange); }
+.dfl-alert{ border-radius:8px; padding:12px 14px; font-size:13.5px; margin:14px 0; line-height:1.5; }
+.dfl-alert-error{ background:#fbe9ea; color:#7a2331; border:1px solid #f0c3c8; }
+.dfl-alert-success{ background:#e9f5ef; color:#1f6b4d; border:1px solid #bfe3d1; }
+.dfl-alert-info{ background:#eef3fb; color:#1c3f6b; border:1px solid #c8d9f0; }
+.dfl-spinner{ width:22px; height:22px; border:3px solid var(--line); border-top-color:var(--orange); border-radius:50%; animation:dfl-spin .7s linear infinite; margin:0 auto; }
+@keyframes dfl-spin{ to{ transform:rotate(360deg); } }
+.dfl-suggest-wrap{ position:relative; }
+.dfl-suggest-list{ position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 12px 24px -10px rgba(12,9,6,.25); max-height:240px; overflow-y:auto; z-index:40; }
+.dfl-suggest-item{ padding:10px 14px; font-size:13.5px; cursor:pointer; border-bottom:1px solid var(--line); }
+.dfl-suggest-item:last-child{ border-bottom:none; }
+.dfl-suggest-item:hover{ background:var(--bg); }
+.dfl-suggest-item b{ font-weight:700; }
+.dfl-suggest-item span{ color:var(--slate); font-size:12px; display:block; }
+.dfl-order-summary{ background:var(--bg); border-radius:8px; padding:16px; margin:14px 0; font-size:13.5px; }
+.dfl-order-summary div{ margin-bottom:4px; }
+.dfl-segment{ border:1px solid var(--line); border-radius:8px; padding:14px; margin-top:10px; }
+.dfl-segment + .dfl-segment{ margin-top:10px; }
+.dfl-trip-actions{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+.dfl-center{ text-align:center; padding:24px 0; }
