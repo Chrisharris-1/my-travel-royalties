@@ -240,16 +240,35 @@ function dflAirportCode(inputEl){
     const slices = [{ origin: originCode, destination: destCode, departure_date: departDate }];
     if(returnDate){ slices.push({ origin: destCode, destination: originCode, departure_date: returnDate }); }
 
+    lastOffers = [];
+
+    // Live NDC/GDS searches across many airlines routinely take 10-30s, which exceeds a
+    // single serverless function's execution window. So we create the offer request
+    // WITHOUT waiting for offers (fast), then poll the offers list a few times as Duffel
+    // streams results in from each airline — this avoids gateway timeouts and gives the
+    // user progressively-appearing real results, same pattern Duffel recommends.
     try {
-      const res = await dflApi('offer-requests', {
+      const createRes = await dflApi('offer-requests', {
         method: 'POST',
-        body: { slices, passengers: [{ type: 'adult' }], cabinClass: cabin, returnOffers: true },
+        body: { slices, passengers: [{ type: 'adult' }], cabinClass: cabin, returnOffers: false },
       });
-      lastOffers = (res.data && res.data.offers) || [];
+      const offerRequestId = createRes.data.id;
+
+      const maxPolls = 7;
+      for(let i = 0; i < maxPolls; i++){
+        await new Promise(r => setTimeout(r, i === 0 ? 1500 : 2500));
+        try {
+          const offersRes = await dflApi('offers?offer_request_id=' + encodeURIComponent(offerRequestId) + '&limit=50');
+          lastOffers = offersRes.data || [];
+        } catch(pollErr){ continue; }
+        setupPriceSlider();
+        populateAirlineFilter();
+        renderOffers();
+        if(lastOffers.length && i < maxPolls - 1){
+          statusEl.innerHTML = `<div class="dfl-alert dfl-alert-info">${lastOffers.length} live fare${lastOffers.length>1?'s':''} found — still checking a few more airlines…</div>`;
+        }
+      }
       statusEl.innerHTML = lastOffers.length ? '' : `<div class="dfl-alert dfl-alert-info">No live offers found for this route/date — try different dates or airports.</div>`;
-      setupPriceSlider();
-      populateAirlineFilter();
-      renderOffers();
     } catch(e){
       statusEl.innerHTML = `<div class="dfl-alert dfl-alert-error">Search failed: ${e.message}</div>`;
       resultCountEl.textContent = '0';
