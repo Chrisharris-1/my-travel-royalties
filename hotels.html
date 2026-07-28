@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotels — My Travel Royalties</title>
+<link rel="stylesheet" href="ota.css">
+</head>
+<body>
+
+<div class="util-bar">
+  <div class="wrap">
+    <span>24/7 customer support · Best price guarantee</span>
+    <span><a href="office.html">About</a><a href="aviation.html">Help</a><a href="#">USD $</a></span>
+  </div>
+</div>
+<nav class="nav">
+  <div class="wrap">
+    <a href="index.html" class="brand-logo"><img src="logo.png" alt="My Travel Royalties"><span class="brand-text"><span class="name">My Travel Royalties</span></span></a>
+    <div class="nav-links">
+      <a href="flights.html">Flights</a>
+      <a href="hotels.html" class="active">Hotels</a>
+      <a href="cars.html">Cars</a>
+      <a href="deals.html">Deals</a>
+      <a href="events.html">Events</a>
+      <a href="journal.html">Travel Guides</a>
+    </div>
+    <div class="nav-actions">
+      <a href="your-office.html" class="signin">My Trips</a>
+      <a href="your-office.html" class="signin">Sign In</a>
+      <a href="membership.html" class="rewards-pill">★ Rewards</a>
+    </div>
+    <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <span class="mobile-close">Close ✕</span>
+  <a href="flights.html">Flights</a><a href="hotels.html">Hotels</a><a href="cars.html">Cars</a>
+  <a href="deals.html">Deals</a><a href="events.html">Events</a><a href="journal.html">Travel Guides</a>
+  <a href="your-office.html">My Trips</a><a href="membership.html">Rewards</a>
+</div>
+
+<div class="page-header">
+  <div class="wrap">
+    <h1>Hotels in Rome, Italy</h1>
+    <p>Sep 15 – Sep 19 · 2 adults, 1 room</p>
+  </div>
+</div>
+
+<section class="section-sm">
+  <div class="wrap">
+    <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(6,33,79,.18);">
+      <div class="search-body">
+        <div class="search-row">
+          <div class="field"><label>Destination</label><input value="Rome, Italy"></div>
+          <div class="field"><label>Check-in</label><input type="date" value="2026-09-15"></div>
+          <div class="field"><label>Check-out</label><input type="date" value="2026-09-19"></div>
+          <div class="field"><label>Guests</label><select><option>2 Adults, 1 Room</option><option>1 Adult</option><option>Family (4)</option></select></div>
+          <button type="button" class="btn btn-orange">Update Search</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px;">
+  <div class="wrap results-layout">
+
+    <aside class="filters">
+      <h4 style="margin-bottom:4px;">Filter Results</h4>
+      <div class="filter-group">
+        <h4>Price per night</h4>
+        <input type="range" id="hotel-price-range" class="range-input" min="80" max="1200" step="10" value="1200">
+        <div class="flex justify-between mt-8"><span class="muted" style="font-size:12px;">$80</span><span id="hotel-price-label" class="muted" style="font-size:12px;"></span></div>
+      </div>
+      <div class="filter-group">
+        <h4>Star Rating</h4>
+        <label class="check-row"><span><input type="checkbox" name="stars" value="5"> ★★★★★</span></label>
+        <label class="check-row"><span><input type="checkbox" name="stars" value="4"> ★★★★☆</span></label>
+        <label class="check-row"><span><input type="checkbox" name="stars" value="3"> ★★★☆☆</span></label>
+      </div>
+      <div class="filter-group">
+        <h4>Amenities</h4>
+        <label class="check-row"><span><input type="checkbox" checked> Free Wi-Fi</span></label>
+        <label class="check-row"><span><input type="checkbox"> Pool</span></label>
+        <label class="check-row"><span><input type="checkbox"> Spa</span></label>
+        <label class="check-row"><span><input type="checkbox"> Breakfast Included</span></label>
+      </div>
+      <div class="filter-group">
+        <h4>Guest Rating</h4>
+        <label class="check-row"><span><input type="checkbox"> Excellent 9+</span></label>
+        <label class="check-row"><span><input type="checkbox"> Very Good 8+</span></label>
+      </div>
+    </aside>
+
+    <div>
+      <div class="result-list-head">
+        <div><b id="hotel-count">5</b> <span class="muted">hotels found</span></div>
+        <select class="field" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 14px; font-size:14px;">
+          <option>Sort: Our top picks</option>
+          <option>Sort: Price (low to high)</option>
+          <option>Sort: Guest rating</option>
+        </select>
+      </div>
+      <div id="hotel-results"></div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo-row"><div class="footer-logo-badge"><img src="logo.png" alt="My Travel Royalties"></div><div class="footer-brand-text"><div class="name">My Travel Royalties</div></div></div>
+        <p>Flights, hotels, cars, and packages — compared and booked in one place, at the best price we can find.</p>
+      </div>
+      <div><h4>Book</h4><a href="flights.html">Flights</a><a href="hotels.html">Hotels</a><a href="cars.html">Cars</a><a href="deals.html">Deals</a><a href="events.html">Events</a></div>
+      <div><h4>Company</h4><a href="office.html">About Us</a><a href="aviation.html">Help Center</a><a href="journal.html">Travel Guides</a></div>
+      <div><h4>Account</h4><a href="your-office.html">My Trips</a><a href="your-office.html">Sign In</a></div>
+      <div><h4>Rewards</h4><a href="membership.html">Elite Membership</a><a href="membership.html#black">Black Membership</a></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 My Travel Royalties. All rights reserved.</span>
+      <span>Illustrative rates — design prototype.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="ota-main.js"></script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Clean, friendly API paths -> the actual function files.
+[[redirects]]
+  from = "/api/offer-requests"
+  to = "/.netlify/functions/offer-requests"
+  status = 200
+
+[[redirects]]
+  from = "/api/offers"
+  to = "/.netlify/functions/offers"
+  status = 200
+
+[[redirects]]
+  from = "/api/seat-maps"
+  to = "/.netlify/functions/seat-maps"
+  status = 200
+
+[[redirects]]
+  from = "/api/orders"
+  to = "/.netlify/functions/orders"
+  status = 200
+
+[[redirects]]
+  from = "/api/order-cancellations"
+  to = "/.netlify/functions/order-cancellations"
+  status = 200
+
+[[redirects]]
+  from = "/api/order-changes"
+  to = "/.netlify/functions/order-changes"
+  status = 200
+
+[[redirects]]
+  from = "/api/payments"
+  to = "/.netlify/functions/payments"
+  status = 200
+
+[[redirects]]
+  from = "/api/reference-data"
+  to = "/.netlify/functions/reference-data"
+  status = 200
+
+[[redirects]]
+  from = "/api/loyalty-programme-accounts"
+  to = "/.netlify/functions/loyalty-programme-accounts"
+  status = 200
+
+[[redirects]]
+  from = "/api/webhooks"
+  to = "/.netlify/functions/webhooks"
+  status = 200
+
+[[redirects]]
+  from = "/api/stays-search"
+  to = "/.netlify/functions/stays-search"
+  status = 200
+
+[[redirects]]
+  from = "/api/stays-accommodation"
+  to = "/.netlify/functions/stays-accommodation"
+  status = 200
+
+[[redirects]]
+  from = "/api/stays-quotes"
+  to = "/.netlify/functions/stays-quotes"
+  status = 200
+
+[[redirects]]
+  from = "/api/stays-bookings"
+  to = "/.netlify/functions/stays-bookings"
+  status = 200

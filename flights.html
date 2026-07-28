@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flights — My Travel Royalties</title>
+<link rel="stylesheet" href="ota.css">
+</head>
+<body>
+
+<div class="util-bar">
+  <div class="wrap">
+    <span>24/7 customer support · Best price guarantee</span>
+    <span><a href="office.html">About</a><a href="aviation.html">Help</a><a href="#">USD $</a></span>
+  </div>
+</div>
+<nav class="nav">
+  <div class="wrap">
+    <a href="index.html" class="brand-logo"><img src="logo.png" alt="My Travel Royalties"><span class="brand-text"><span class="name">My Travel Royalties</span></span></a>
+    <div class="nav-links">
+      <a href="flights.html" class="active">Flights</a>
+      <a href="hotels.html">Hotels</a>
+      <a href="cars.html">Cars</a>
+      <a href="deals.html">Deals</a>
+      <a href="events.html">Events</a>
+      <a href="journal.html">Travel Guides</a>
+    </div>
+    <div class="nav-actions">
+      <a href="your-office.html" class="signin">My Trips</a>
+      <a href="your-office.html" class="signin">Sign In</a>
+      <a href="membership.html" class="rewards-pill">★ Rewards</a>
+    </div>
+    <button class="nav-burger" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <span class="mobile-close">Close ✕</span>
+  <a href="flights.html">Flights</a><a href="hotels.html">Hotels</a><a href="cars.html">Cars</a>
+  <a href="deals.html">Deals</a><a href="events.html">Events</a><a href="journal.html">Travel Guides</a>
+  <a href="your-office.html">My Trips</a><a href="membership.html">Rewards</a>
+</div>
+
+<div class="page-header">
+  <div class="wrap">
+    <h1>Flights to London</h1>
+    <p>JFK → LHR · Sep 15 – Sep 22 · 1 traveler · Economy</p>
+  </div>
+</div>
+
+<section class="section-sm">
+  <div class="wrap">
+    <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(6,33,79,.18);">
+      <div class="search-body">
+        <div class="search-row">
+          <div class="field"><label>From</label><input value="New York (JFK)"></div>
+          <div class="field"><label>To</label><input value="London (LHR)"></div>
+          <div class="field"><label>Depart</label><input type="date" value="2026-09-15"></div>
+          <div class="field"><label>Return</label><input type="date" value="2026-09-22"></div>
+          <button type="button" class="btn btn-orange">Update Search</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px;">
+  <div class="wrap results-layout">
+
+    <aside class="filters">
+      <h4 style="margin-bottom:4px;">Filter Results</h4>
+      <div class="filter-group">
+        <h4>Price (round trip)</h4>
+        <input type="range" id="price-range" class="range-input" min="300" max="2000" step="10" value="2000">
+        <div class="flex justify-between mt-8"><span class="muted" style="font-size:12px;">$300</span><span id="price-range-label" class="muted" style="font-size:12px;"></span></div>
+      </div>
+      <div class="filter-group">
+        <h4>Stops</h4>
+        <label class="check-row"><span><input type="radio" name="stops" value="any" checked> Any</span></label>
+        <label class="check-row"><span><input type="radio" name="stops" value="Nonstop"> Nonstop</span></label>
+        <label class="check-row"><span><input type="radio" name="stops" value="1 stop"> 1 stop</span></label>
+        <label class="check-row"><span><input type="radio" name="stops" value="2 stops"> 2 stops</span></label>
+      </div>
+      <div class="filter-group">
+        <h4>Cabin</h4>
+        <label class="check-row"><span><input type="checkbox" checked> Economy</span></label>
+        <label class="check-row"><span><input type="checkbox"> Premium Economy</span></label>
+        <label class="check-row"><span><input type="checkbox"> Business</span></label>
+        <label class="check-row"><span><input type="checkbox"> First</span></label>
+      </div>
+      <div class="filter-group">
+        <h4>Airlines</h4>
+        <label class="check-row"><span><input type="checkbox" checked> SkyBridge Air</span><span class="count">142</span></label>
+        <label class="check-row"><span><input type="checkbox" checked> Continental Prime</span><span class="count">98</span></label>
+        <label class="check-row"><span><input type="checkbox" checked> Meridian Atlantic</span><span class="count">76</span></label>
+      </div>
+    </aside>
+
+    <div>
+      <div class="result-list-head">
+        <div><b id="result-count">6</b> <span class="muted">flights found</span></div>
+        <select id="sort-select" class="field" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 14px; font-size:14px;">
+          <option value="price">Sort: Price (low to high)</option>
+          <option value="duration">Sort: Duration (shortest)</option>
+        </select>
+      </div>
+      <div id="flight-results"></div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="footer-logo-row"><div class="footer-logo-badge"><img src="logo.png" alt="My Travel Royalties"></div><div class="footer-brand-text"><div class="name">My Travel Royalties</div></div></div>
+        <p>Flights, hotels, cars, and packages — compared and booked in one place, at the best price we can find.</p>
+      </div>
+      <div><h4>Book</h4><a href="flights.html">Flights</a><a href="hotels.html">Hotels</a><a href="cars.html">Cars</a><a href="deals.html">Deals</a><a href="events.html">Events</a></div>
+      <div><h4>Company</h4><a href="office.html">About Us</a><a href="aviation.html">Help Center</a><a href="journal.html">Travel Guides</a></div>
+      <div><h4>Account</h4><a href="your-office.html">My Trips</a><a href="your-office.html">Sign In</a></div>
+      <div><h4>Rewards</h4><a href="membership.html">Elite Membership</a><a href="membership.html#black">Black Membership</a></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 My Travel Royalties. All rights reserved.</span>
+      <span>Illustrative fares — design prototype.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="ota-main.js"></script>
+</body>
+</html>
