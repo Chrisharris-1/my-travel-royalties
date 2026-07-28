@@ -13,7 +13,7 @@
 //   -> customer has reviewed and approved the quote
 // POST { action: "cancel", ref }
 //   -> customer (or agent) flags the quote as not to proceed
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 const { jsonResponse, errorResponse, handleOptions } = require('./_duffel-client');
 
 const REF_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L — avoids confusion when read aloud
@@ -87,6 +87,11 @@ async function sendVerificationEmail(quote) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return handleOptions();
+
+  // Our functions use the classic Lambda-compatible handler signature, so the
+  // Blobs environment isn't auto-configured — it has to be wired up explicitly
+  // per-invocation from the raw event before getStore() will work.
+  connectLambda(event);
 
   try {
     const store = quotesStore();
