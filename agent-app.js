@@ -2,6 +2,8 @@
    MY TRAVEL ROYALTIES — Agent Portal
    Search live fares, add a markup, generate an MTR quote and
    email the customer to verify before anything is ever booked.
+   Also: per-agent login, Log a Call/Lead, Sale Form, Quotes list,
+   and Team Chat.
    Relies on the shared helpers defined in duffel-app.js
    (dflApi, dflFmtMoney, dflFmtTime, dflFmtDate, dflFmtDuration,
    dflParseDurationMins, dflWireAirportAutocomplete, dflAirportCode).
@@ -12,18 +14,74 @@
   if(!shellGate || !shell) return;
 
   let agentName = '';
+  let agentEmail = '';
   let agentCode = '';
+  let agentRole = 'agent';
 
-  document.getElementById('agent-gate-form').addEventListener('submit', (e) => {
+  async function callFn(name, body){
+    const res = await fetch('/.netlify/functions/' + name, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    const json = await res.json().catch(() => ({}));
+    if(!res.ok || json.error) throw new Error((json && json.message) || `Request to ${name} failed`);
+    return json;
+  }
+
+  document.getElementById('agent-gate-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    agentName = document.getElementById('agent-name-input').value.trim();
-    agentCode = document.getElementById('agent-code-input').value;
-    if(!agentName) return;
-    document.getElementById('agent-name-pill').textContent = agentName;
-    shellGate.style.display = 'none';
-    shell.style.display = 'block';
+    const emailInput = document.getElementById('agent-email-input');
+    const codeInput = document.getElementById('agent-code-input');
+    const errorEl = document.getElementById('agent-gate-error');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    errorEl.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+
+    try {
+      const res = await callFn('agent-login', { email: emailInput.value.trim(), code: codeInput.value.trim() });
+      agentName = res.data.name;
+      agentEmail = res.data.email;
+      agentCode = codeInput.value.trim();
+      agentRole = res.data.role || 'agent';
+
+      document.getElementById('agent-name-pill').textContent = agentName;
+      const rolePill = document.getElementById('agent-role-pill');
+      if(agentRole === 'lead'){
+        rolePill.style.display = 'inline-flex';
+        document.getElementById('leads-list-heading').textContent = 'Team Leads';
+        document.getElementById('quotes-list-heading').textContent = 'Team Quotes';
+        document.getElementById('sales-list-heading').textContent = 'Team Sales';
+      }
+      shellGate.style.display = 'none';
+      shell.style.display = 'block';
+      initRosterAndChat();
+      refreshLeads();
+      refreshSales();
+      refreshQuotes();
+    } catch(err){
+      errorEl.textContent = err.message || 'Sign-in failed.';
+      errorEl.style.display = 'block';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Enter Agent Portal';
+    }
   });
 
+  /* ---------- tabs ---------- */
+  document.querySelectorAll('.agent-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.agent-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelector(`.agent-panel[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+    });
+  });
+
+  /* =========================================================
+     FLIGHTS / QUOTE BUILDER (live Duffel search)
+     ========================================================= */
   const fromInput = document.getElementById('agent-from-input');
   const toInput = document.getElementById('agent-to-input');
   const departInput = document.getElementById('agent-depart-input');
@@ -216,7 +274,7 @@
             passenger,
             billingAddress,
             customerEmail: fd.get('customerEmail'),
-            agentName,
+            agentEmail,
             agentCode,
           },
         });
@@ -235,7 +293,7 @@
           <div class="dfl-field"><label>Verification link</label><input type="text" readonly value="${verifyUrl}" onclick="this.select()"></div>
           <button type="button" class="btn btn-outline mt-16" style="width:100%;" id="agent-quote-done">Done</button>
         `;
-        document.getElementById('agent-quote-done').addEventListener('click', () => { modal.style.display = 'none'; });
+        document.getElementById('agent-quote-done').addEventListener('click', () => { modal.style.display = 'none'; refreshQuotes(); });
       } catch(err){
         document.getElementById('agent-quote-error').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
         submitBtn.disabled = false;
@@ -243,4 +301,195 @@
       }
     });
   }
+
+  /* =========================================================
+     LOG A CALL / LEAD
+     ========================================================= */
+  const leadForm = document.getElementById('lead-form');
+  const leadStatus = document.getElementById('lead-form-status');
+  leadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = leadForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true; submitBtn.textContent = 'Saving…';
+    leadStatus.innerHTML = '';
+    try {
+      await callFn('leads', {
+        action: 'create',
+        agentEmail, agentCode,
+        customerName: document.getElementById('lead-name-input').value,
+        customerPhone: document.getElementById('lead-phone-input').value,
+        customerEmail: document.getElementById('lead-email-input').value,
+        interest: document.getElementById('lead-interest-input').value,
+        outcome: document.getElementById('lead-outcome-select').value,
+        followUpDate: document.getElementById('lead-followup-input').value,
+        notes: document.getElementById('lead-notes-input').value,
+      });
+      leadStatus.innerHTML = `<div class="dfl-alert dfl-alert-success">Lead saved.</div>`;
+      leadForm.reset();
+      refreshLeads();
+    } catch(err){
+      leadStatus.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    } finally {
+      submitBtn.disabled = false; submitBtn.textContent = 'Save Lead';
+    }
+  });
+
+  const OUTCOME_LABELS = { interested:'Interested', booked:'Booked', not_interested:'Not interested', follow_up_needed:'Needs follow-up', no_answer:'No answer' };
+  async function refreshLeads(){
+    const host = document.getElementById('leads-list');
+    try {
+      const res = await callFn('agent-leads', { email: agentEmail, code: agentCode });
+      const leads = res.data || [];
+      host.innerHTML = leads.length ? leads.map(l => `
+        <div class="lead-row">
+          <div><b>${l.customerName}</b><div class="muted">${l.customerPhone || l.customerEmail || ''}</div></div>
+          <div>${l.interest || '—'}</div>
+          <div><span class="pill pill-blue">${OUTCOME_LABELS[l.outcome] || l.outcome}</span>${agentRole==='lead' ? `<div class="muted mt-8">${l.agentName}</div>` : ''}</div>
+          <div class="muted">${new Date(l.createdAt).toLocaleDateString()}</div>
+        </div>
+      `).join('') : `<p class="muted center" style="padding:24px 0;">No leads logged yet.</p>`;
+    } catch(err){
+      host.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+  }
+
+  /* =========================================================
+     SALE FORM
+     ========================================================= */
+  const saleForm = document.getElementById('sale-form');
+  const saleStatus = document.getElementById('sale-form-status');
+  saleForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = saleForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true; submitBtn.textContent = 'Saving…';
+    saleStatus.innerHTML = '';
+    try {
+      await callFn('sales', {
+        action: 'create',
+        agentEmail, agentCode,
+        customerName: document.getElementById('sale-name-input').value,
+        customerEmail: document.getElementById('sale-email-input').value,
+        customerPhone: document.getElementById('sale-phone-input').value,
+        productType: document.getElementById('sale-product-select').value,
+        saleAmount: document.getElementById('sale-amount-input').value,
+        commission: document.getElementById('sale-commission-input').value,
+        saleDate: document.getElementById('sale-date-input').value,
+        notes: document.getElementById('sale-notes-input').value,
+      });
+      saleStatus.innerHTML = `<div class="dfl-alert dfl-alert-success">Sale saved.</div>`;
+      saleForm.reset();
+      refreshSales();
+    } catch(err){
+      saleStatus.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    } finally {
+      submitBtn.disabled = false; submitBtn.textContent = 'Save Sale';
+    }
+  });
+
+  async function refreshSales(){
+    const host = document.getElementById('sales-list');
+    try {
+      const res = await callFn('agent-sales', { email: agentEmail, code: agentCode });
+      const sales = res.data || [];
+      host.innerHTML = sales.length ? sales.map(s => `
+        <div class="quote-row">
+          <div><b>${s.customerName}</b><div class="muted">${s.productType}</div></div>
+          <div>$${Number(s.saleAmount).toLocaleString('en-US')}</div>
+          <div>${agentRole==='lead' ? s.agentName : (s.commission != null ? 'Commission: $' + s.commission : '')}</div>
+          <div class="muted">${s.saleDate}</div>
+        </div>
+      `).join('') : `<p class="muted center" style="padding:24px 0;">No sales logged yet.</p>`;
+    } catch(err){
+      host.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+  }
+
+  /* =========================================================
+     QUOTES LIST
+     ========================================================= */
+  async function refreshQuotes(){
+    const host = document.getElementById('quotes-list');
+    try {
+      const res = await callFn('agent-quotes', { email: agentEmail, code: agentCode });
+      const quotes = res.data || [];
+      host.innerHTML = quotes.length ? quotes.map(q => `
+        <div class="quote-row">
+          <div><b>${q.mtrRef}</b><div class="muted">${q.customerEmail}</div></div>
+          <div>${dflFmtMoney(q.totalAmount, q.totalCurrency)}</div>
+          <div><span class="pill pill-blue">${q.status.replace(/_/g,' ')}</span>${agentRole==='lead' ? `<div class="muted mt-8">${q.agentName}</div>` : ''}</div>
+          <div class="muted">${new Date(q.createdAt).toLocaleDateString()}</div>
+        </div>
+      `).join('') : `<p class="muted center" style="padding:24px 0;">No quotes yet.</p>`;
+    } catch(err){
+      host.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+  }
+
+  /* =========================================================
+     TEAM CHAT
+     ========================================================= */
+  let currentChannel = 'team';
+  let chatPollTimer = null;
+
+  function renderChannelList(roster){
+    const listEl = document.getElementById('chat-channel-list');
+    const others = roster.filter(a => a.email.toLowerCase() !== agentEmail.toLowerCase());
+    const dmTargets = agentRole === 'lead' ? others : others.filter(a => a.role === 'lead');
+    listEl.innerHTML = `<button type="button" class="chat-channel active" data-channel="team">Team Chat<span class="sub">Everyone</span></button>` +
+      dmTargets.map(a => `<button type="button" class="chat-channel" data-channel="${a.email}">${a.name}<span class="sub">${a.role === 'lead' ? 'Team Lead' : 'Direct message'}</span></button>`).join('');
+    listEl.querySelectorAll('.chat-channel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        listEl.querySelectorAll('.chat-channel').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentChannel = btn.dataset.channel;
+        loadChat();
+      });
+    });
+  }
+
+  function renderMessages(messages){
+    const host = document.getElementById('chat-messages');
+    host.innerHTML = messages.map(m => `
+      <div class="chat-msg ${m.fromEmail.toLowerCase() === agentEmail.toLowerCase() ? 'mine' : ''}">
+        <div>${m.text.replace(/</g,'&lt;')}</div>
+        <div class="meta">${m.fromName} · ${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+      </div>
+    `).join('');
+    host.scrollTop = host.scrollHeight;
+  }
+
+  async function loadChat(){
+    try {
+      const res = await callFn('chat-messages', { agentEmail, agentCode, channel: currentChannel });
+      renderMessages(res.data || []);
+    } catch(err){
+      document.getElementById('chat-messages').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+  }
+
+  async function initRosterAndChat(){
+    try {
+      const res = await callFn('chat-messages', { agentEmail, agentCode, channel: 'team' });
+      renderChannelList(res.roster || []);
+      renderMessages(res.data || []);
+    } catch(err){
+      document.getElementById('chat-messages').innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    }
+    if(chatPollTimer) clearInterval(chatPollTimer);
+    chatPollTimer = setInterval(loadChat, 4000);
+  }
+
+  document.getElementById('chat-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    try {
+      await callFn('chat-send', { agentEmail, agentCode, channel: currentChannel, text });
+      loadChat();
+    } catch(err){
+      alert(err.message);
+    }
+  });
 })();

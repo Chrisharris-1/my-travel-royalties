@@ -8,13 +8,36 @@
 <link rel="stylesheet" href="ota.css">
 <style>
   body{ background:var(--bg); }
-  .agent-shell{ max-width:960px; margin:0 auto; padding:32px 20px 80px; }
-  .agent-header{ display:flex; align-items:center; gap:14px; padding:20px 0 28px; border-bottom:1px solid var(--line); margin-bottom:28px; }
+  .agent-shell{ max-width:1040px; margin:0 auto; padding:32px 20px 80px; }
+  .agent-header{ display:flex; align-items:center; gap:14px; padding:20px 0 28px; border-bottom:1px solid var(--line); margin-bottom:22px; }
   .agent-header img{ height:34px; }
   .agent-header h1{ font-family:var(--head); font-size:20px; }
-  .agent-header .pill{ margin-left:auto; background:var(--blue-dark); color:#eef2ec; }
+  .agent-header .pill{ margin-left:auto; }
+  .agent-header .role-pill{ background:var(--gold); color:#1a1400; margin-left:8px; }
   .gate-card{ max-width:420px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:32px; }
   .gate-card h2{ font-family:var(--head); margin-bottom:6px; }
+  .agent-tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:24px; overflow-x:auto; }
+  .agent-tab{ padding:11px 16px; font-size:14px; font-weight:600; color:var(--slate); border-bottom:2px solid transparent; white-space:nowrap; }
+  .agent-tab.active{ color:var(--ink); border-color:var(--blue); }
+  .agent-panel{ display:none; }
+  .agent-panel.active{ display:block; }
+  .lead-row, .quote-row{ display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:14px; align-items:center; padding:14px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .lead-row:last-child, .quote-row:last-child{ border-bottom:none; }
+  .lead-row .muted, .quote-row .muted{ font-size:12px; }
+  .chat-wrap{ display:grid; grid-template-columns:220px 1fr; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; min-height:460px; }
+  .chat-channels{ background:#fafaf9; border-right:1px solid var(--line); padding:10px; }
+  .chat-channel{ display:block; width:100%; text-align:left; padding:10px 12px; border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink); }
+  .chat-channel.active{ background:var(--blue-deep); color:#fff; }
+  .chat-channel .sub{ display:block; font-size:11px; font-weight:500; color:var(--slate); }
+  .chat-channel.active .sub{ color:rgba(255,255,255,.65); }
+  .chat-main{ display:flex; flex-direction:column; }
+  .chat-messages{ flex:1; padding:16px; overflow-y:auto; max-height:400px; display:flex; flex-direction:column; gap:10px; }
+  .chat-msg{ max-width:75%; padding:9px 13px; border-radius:12px; font-size:13.5px; background:#f1efe8; }
+  .chat-msg.mine{ align-self:flex-end; background:var(--blue-deep); color:#fff; }
+  .chat-msg .meta{ font-size:10.5px; color:var(--slate); margin-top:3px; }
+  .chat-msg.mine .meta{ color:rgba(255,255,255,.6); }
+  .chat-input-row{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); }
+  .chat-input-row input{ flex:1; border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; }
 </style>
 </head>
 <body>
@@ -23,8 +46,9 @@
   <h2>Agent sign-in</h2>
   <p class="muted" style="font-size:13.5px; margin-bottom:16px;">Internal tool — for My Travel Royalties sales agents only.</p>
   <form id="agent-gate-form">
-    <div class="dfl-field" style="margin-bottom:12px;"><label>Your name</label><input id="agent-name-input" required placeholder="Jane Smith"></div>
-    <div class="dfl-field" style="margin-bottom:16px;"><label>Agent access code</label><input id="agent-code-input" type="password" placeholder="Ask your manager if you don't have one"></div>
+    <div class="dfl-field" style="margin-bottom:12px;"><label>Your email</label><input id="agent-email-input" type="email" required placeholder="leo@mytravelroyalties.com"></div>
+    <div class="dfl-field" style="margin-bottom:16px;"><label>Access code</label><input id="agent-code-input" required placeholder="Ask your team lead if you don't have one"></div>
+    <div id="agent-gate-error" class="dfl-alert dfl-alert-error" style="display:none;"></div>
     <button type="submit" class="btn btn-orange" style="width:100%;">Enter Agent Portal</button>
   </form>
 </div>
@@ -32,37 +56,140 @@
 <div id="agent-shell" class="agent-shell" style="display:none;">
   <div class="agent-header">
     <img src="logo-mark.png" alt="My Travel Royalties">
-    <h1>Agent Portal — Build a Quote</h1>
+    <h1>Agent Portal</h1>
     <span class="pill" id="agent-name-pill"></span>
+    <span class="pill role-pill" id="agent-role-pill" style="display:none;">Team Lead</span>
   </div>
 
-  <p class="muted" style="margin-bottom:20px;">Search live fares, add your markup, and send the customer a verification link. Nothing is booked until the customer confirms and you take it to the next step.</p>
+  <div class="agent-tabs">
+    <button type="button" class="agent-tab active" data-tab="flights">Build a Quote</button>
+    <button type="button" class="agent-tab" data-tab="leads">Log a Call / Lead</button>
+    <button type="button" class="agent-tab" data-tab="sale">Sale Form</button>
+    <button type="button" class="agent-tab" data-tab="quotes">Quotes</button>
+    <button type="button" class="agent-tab" data-tab="chat">Team Chat</button>
+  </div>
 
-  <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(10,10,12,.18);">
-    <div class="search-body">
-      <div class="search-row">
-        <div class="field dfl-suggest-wrap"><label>From</label><input id="agent-from-input" value="New York (JFK)" data-code="JFK" autocomplete="off"><div id="agent-from-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
-        <div class="field dfl-suggest-wrap"><label>To</label><input id="agent-to-input" value="London (LHR)" data-code="LHR" autocomplete="off"><div id="agent-to-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
-        <div class="field"><label>Depart</label><input type="date" id="agent-depart-input" value="2026-09-15"></div>
-        <div class="field"><label>Return (optional)</label><input type="date" id="agent-return-input" value="2026-09-22"></div>
+  <!-- ---------- FLIGHTS / QUOTE BUILDER ---------- -->
+  <div class="agent-panel active" data-panel="flights">
+    <p class="muted" style="margin-bottom:20px;">Search live fares, add your markup, and send the customer a verification link. Nothing is booked until the customer confirms and you take it to the next step.</p>
+
+    <div class="search-card" style="box-shadow:0 10px 24px -14px rgba(10,10,12,.18);">
+      <div class="search-body">
+        <div class="search-row">
+          <div class="field dfl-suggest-wrap"><label>From</label><input id="agent-from-input" value="New York (JFK)" data-code="JFK" autocomplete="off"><div id="agent-from-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+          <div class="field dfl-suggest-wrap"><label>To</label><input id="agent-to-input" value="London (LHR)" data-code="LHR" autocomplete="off"><div id="agent-to-suggest" class="dfl-suggest-list" style="display:none;"></div></div>
+          <div class="field"><label>Depart</label><input type="date" id="agent-depart-input" value="2026-09-15"></div>
+          <div class="field"><label>Return (optional)</label><input type="date" id="agent-return-input" value="2026-09-22"></div>
+        </div>
+        <div class="search-row mt-8">
+          <div class="field">
+            <label>Cabin</label>
+            <select id="agent-cabin-select" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;">
+              <option value="economy">Economy</option>
+              <option value="premium_economy">Premium Economy</option>
+              <option value="business">Business</option>
+              <option value="first">First</option>
+            </select>
+          </div>
+          <button type="button" id="agent-search-btn" class="btn btn-orange">Search Live Fares</button>
+        </div>
       </div>
-      <div class="search-row mt-8">
+    </div>
+
+    <div id="agent-flight-status" class="mt-16"></div>
+    <div id="agent-flight-results" class="mt-16"></div>
+  </div>
+
+  <!-- ---------- LOG A CALL / LEAD ---------- -->
+  <div class="agent-panel" data-panel="leads">
+    <p class="muted" style="margin-bottom:20px;">Log a call with a potential customer — even if it didn't turn into a booking yet.</p>
+    <form id="lead-form" class="search-card" style="box-shadow:0 10px 24px -14px rgba(10,10,12,.18); padding:22px;">
+      <div class="search-row" style="grid-template-columns:1fr 1fr;">
+        <div class="field"><label>Customer name</label><input id="lead-name-input" required></div>
+        <div class="field"><label>Phone</label><input id="lead-phone-input" type="tel"></div>
+      </div>
+      <div class="search-row mt-8" style="grid-template-columns:1fr 1fr;">
+        <div class="field"><label>Email</label><input id="lead-email-input" type="email"></div>
+        <div class="field"><label>Interested in</label><input id="lead-interest-input" placeholder="e.g. Business class to Tokyo"></div>
+      </div>
+      <div class="search-row mt-8" style="grid-template-columns:1fr 1fr;">
         <div class="field">
-          <label>Cabin</label>
-          <select id="agent-cabin-select" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;">
-            <option value="economy">Economy</option>
-            <option value="premium_economy">Premium Economy</option>
-            <option value="business">Business</option>
-            <option value="first">First</option>
+          <label>Outcome</label>
+          <select id="lead-outcome-select" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;">
+            <option value="interested">Interested</option>
+            <option value="follow_up_needed">Needs follow-up</option>
+            <option value="booked">Booked</option>
+            <option value="not_interested">Not interested</option>
+            <option value="no_answer">No answer</option>
           </select>
         </div>
-        <button type="button" id="agent-search-btn" class="btn btn-orange">Search Live Fares</button>
+        <div class="field"><label>Follow-up date</label><input id="lead-followup-input" type="date"></div>
+      </div>
+      <div class="field mt-8"><label>Call notes</label><textarea id="lead-notes-input" rows="3" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;"></textarea></div>
+      <div id="lead-form-status" class="mt-12"></div>
+      <button type="submit" class="btn btn-orange mt-16">Save Lead</button>
+    </form>
+
+    <h3 class="h3 mt-32" id="leads-list-heading">My Leads</h3>
+    <div id="leads-list" class="search-card mt-12" style="padding:6px 22px; box-shadow:0 10px 24px -14px rgba(10,10,12,.18);"></div>
+  </div>
+
+  <!-- ---------- SALE FORM ---------- -->
+  <div class="agent-panel" data-panel="sale">
+    <p class="muted" style="margin-bottom:20px;">Record any completed sale — flight, hotel, car, package, or membership.</p>
+    <form id="sale-form" class="search-card" style="box-shadow:0 10px 24px -14px rgba(10,10,12,.18); padding:22px;">
+      <div class="search-row" style="grid-template-columns:1fr 1fr;">
+        <div class="field"><label>Customer name</label><input id="sale-name-input" required></div>
+        <div class="field"><label>Product</label>
+          <select id="sale-product-select" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;">
+            <option value="flight">Flight</option>
+            <option value="hotel">Hotel</option>
+            <option value="car">Car</option>
+            <option value="package">Package</option>
+            <option value="membership">Membership</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="search-row mt-8" style="grid-template-columns:1fr 1fr;">
+        <div class="field"><label>Customer email</label><input id="sale-email-input" type="email"></div>
+        <div class="field"><label>Customer phone</label><input id="sale-phone-input" type="tel"></div>
+      </div>
+      <div class="search-row mt-8" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="field"><label>Sale amount (USD)</label><input id="sale-amount-input" type="number" min="0" step="0.01" required></div>
+        <div class="field"><label>Your commission (optional)</label><input id="sale-commission-input" type="number" min="0" step="0.01"></div>
+        <div class="field"><label>Sale date</label><input id="sale-date-input" type="date"></div>
+      </div>
+      <div class="field mt-8"><label>Notes</label><textarea id="sale-notes-input" rows="3" style="border:1.5px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;"></textarea></div>
+      <div id="sale-form-status" class="mt-12"></div>
+      <button type="submit" class="btn btn-orange mt-16">Save Sale</button>
+    </form>
+
+    <h3 class="h3 mt-32" id="sales-list-heading">My Sales</h3>
+    <div id="sales-list" class="search-card mt-12" style="padding:6px 22px; box-shadow:0 10px 24px -14px rgba(10,10,12,.18);"></div>
+  </div>
+
+  <!-- ---------- QUOTES ---------- -->
+  <div class="agent-panel" data-panel="quotes">
+    <h3 class="h3" id="quotes-list-heading">My Quotes</h3>
+    <div id="quotes-list" class="search-card mt-12" style="padding:6px 22px; box-shadow:0 10px 24px -14px rgba(10,10,12,.18);"></div>
+  </div>
+
+  <!-- ---------- TEAM CHAT ---------- -->
+  <div class="agent-panel" data-panel="chat">
+    <div class="chat-wrap">
+      <div class="chat-channels" id="chat-channel-list">
+        <button type="button" class="chat-channel active" data-channel="team">Team Chat<span class="sub">Everyone</span></button>
+      </div>
+      <div class="chat-main">
+        <div class="chat-messages" id="chat-messages"></div>
+        <form id="chat-form" class="chat-input-row">
+          <input id="chat-input" placeholder="Message…" autocomplete="off">
+          <button type="submit" class="btn btn-orange btn-sm">Send</button>
+        </form>
       </div>
     </div>
   </div>
-
-  <div id="agent-flight-status" class="mt-16"></div>
-  <div id="agent-flight-results" class="mt-16"></div>
 </div>
 
 <div id="agent-quote-modal" class="dfl-modal-overlay" style="display:none;">
