@@ -51,6 +51,8 @@
       if(agentRole === 'lead'){
         rolePill.style.display = 'inline-flex';
         document.getElementById('leads-list-heading').textContent = 'Team Leads';
+        document.getElementById('performance-tab').style.display = 'inline-block';
+        document.getElementById('report-tab').style.display = 'inline-block';
         document.getElementById('quotes-list-heading').textContent = 'Team Quotes';
         document.getElementById('sales-list-heading').textContent = 'Team Sales';
       }
@@ -542,4 +544,114 @@
       alert(err.message);
     }
   });
+
+  /* ---------- TEAM PERFORMANCE (TEAM LEAD ONLY) ---------- */
+  async function loadTeamPerformance(){
+    try {
+      document.getElementById('perf-content').style.display = 'none';
+      document.getElementById('perf-loading').style.display = 'block';
+
+      const res = await callFn('dashboard-metrics', { email: agentEmail, code: agentCode });
+      const data = res.data;
+
+      // Update summary
+      document.getElementById('perf-sales').textContent = '$' + data.team.todaysSales.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('perf-target').textContent = Math.round(data.team.todaysTarget).toLocaleString();
+      const pct = Math.min(data.team.todaysProgress, 100);
+      document.getElementById('perf-progress').textContent = data.team.todaysProgress.toFixed(1) + '%';
+      document.getElementById('perf-bar').style.width = pct + '%';
+      document.getElementById('perf-calls').textContent = data.team.todaysCallCount;
+      document.getElementById('perf-arpc').textContent = data.team.todaysARPC.toFixed(2);
+
+      // Update agent table
+      const tbody = document.getElementById('perf-agent-tbody');
+      tbody.innerHTML = data.agents.map(a => {
+        const aPct = Math.min(a.todaysProgress, 100);
+        const statusColor = aPct >= 100 ? '#22c55e' : aPct >= 70 ? '#1a1400' : '#ef4444';
+        return `
+          <tr style="border-bottom:1px solid var(--line);">
+            <td style="padding:8px; font-weight:600;">${a.name}</td>
+            <td style="padding:8px; text-align:right;">$${Math.round(a.dailyTarget).toLocaleString()}</td>
+            <td style="padding:8px; text-align:right;">$${a.todaysSales.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td style="padding:8px; text-align:center;"><div style="display:inline-block; width:40px; height:16px; background:#e5e0d9; border-radius:2px; overflow:hidden; position:relative;"><div style="height:100%; background:${statusColor}; width:${aPct}%;"></div><div style="position:absolute; top:0; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--slate);">${a.todaysProgress.toFixed(0)}%</div></div></td>
+            <td style="padding:8px; text-align:center;">${a.todaysCallCount}</td>
+            <td style="padding:8px; text-align:right;">$${a.todaysARPC.toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('perf-loading').style.display = 'none';
+      document.getElementById('perf-content').style.display = 'block';
+    } catch(err){
+      document.getElementById('perf-loading').innerHTML = '<div class="dfl-alert dfl-alert-error">' + err.message + '</div>';
+    }
+  }
+
+  document.getElementById('perf-refresh-btn').addEventListener('click', loadTeamPerformance);
+
+  /* ---------- REPORT SUBMISSION (TEAM LEAD ONLY) ---------- */
+  async function loadReportPreview(){
+    try {
+      const res = await callFn('dashboard-metrics', { email: agentEmail, code: agentCode });
+      const data = res.data;
+      document.getElementById('preview-sales').textContent = '$' + data.team.todaysSales.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('preview-target').textContent = '$' + Math.round(data.team.todaysTarget).toLocaleString();
+      document.getElementById('preview-progress').textContent = data.team.todaysProgress.toFixed(1) + '%';
+      document.getElementById('preview-calls').textContent = data.team.todaysCallCount;
+    } catch(err){
+      console.warn('Preview load error:', err.message);
+    }
+  }
+
+  document.getElementById('report-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mgmtEmail = document.getElementById('report-mgmt-email').value.trim();
+    const notes = document.getElementById('report-notes').value.trim();
+    const statusEl = document.getElementById('report-status');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+
+    if(!mgmtEmail) { statusEl.innerHTML = '<div class="dfl-alert dfl-alert-error">Management email required</div>'; return; }
+
+    statusEl.innerHTML = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Generating & Submitting…';
+
+    try {
+      const res = await callFn('submit-report', {
+        agentEmail,
+        agentCode,
+        teamNotes: notes,
+        managementEmail: mgmtEmail
+      });
+      statusEl.innerHTML = '<div class="dfl-alert dfl-alert-success">✓ Report submitted successfully to ' + mgmtEmail + '</div>';
+      setTimeout(() => {
+        document.getElementById('report-form').reset();
+        statusEl.innerHTML = '';
+      }, 3000);
+    } catch(err) {
+      statusEl.innerHTML = '<div class="dfl-alert dfl-alert-error">' + err.message + '</div>';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Generate & Submit Report';
+    }
+  });
+
+  // Load data when tabs are clicked
+  document.querySelectorAll('.agent-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      if(tab.dataset.tab === 'performance') {
+        setTimeout(loadTeamPerformance, 100);
+      } else if(tab.dataset.tab === 'report') {
+        setTimeout(loadReportPreview, 100);
+      }
+    });
+  });
+
+  // Auto-refresh performance data every 30 seconds when on that tab
+  setInterval(() => {
+    const perfPanel = document.querySelector('[data-panel="performance"].active');
+    if(perfPanel && agentRole === 'lead') {
+      loadTeamPerformance();
+    }
+  }, 30000);
 })();
