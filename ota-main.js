@@ -88,7 +88,7 @@ if(hotelResults){
     { name:"The Aldwyn London", stars:5, rating:9.4, reviews:1820, price:420, img:"hotel,london,suite" },
     { name:"Marchetti Suites Rome", stars:4, rating:8.9, reviews:960, price:265, img:"hotel,rome,balcony" },
     { name:"Harbor Point Residences", stars:4, rating:8.6, reviews:1240, price:210, img:"hotel,harbor,view" },
-    { name:"Sable & Stone Hotel", stars:5, rating:9.6, reviews:640, price:540, img:"hotel,luxury,pool" },
+    { name:"Sable & Stone Hotel", stars:5, rating:9.6, reviews:640, price:540, img:"images/hotel-infinity-pool-sunset.jpg" },
     { name:"Midtown Central Inn", stars:3, rating:8.1, reviews:2110, price:145, img:"hotel,city,room" },
   ];
   function stars(n){ return '★'.repeat(n) + '☆'.repeat(5-n); }
@@ -96,7 +96,7 @@ if(hotelResults){
     const rows = HOTELS.filter(h => h.price <= maxPrice && h.stars >= minStars);
     hotelResults.innerHTML = rows.length ? rows.map(h => `
       <div class="hotel-card">
-        <div class="hotel-img photo-img" style="background-image:url('https://loremflickr.com/300/260/${h.img}');"></div>
+        <div class="hotel-img photo-img" style="background-image:url('${h.img.startsWith('images/') ? h.img : 'https://loremflickr.com/300/260/' + h.img}');"></div>
         <div class="hotel-body">
           <div class="stars">${stars(h.stars)}</div>
           <h3 class="h3 mt-8">${h.name}</h3>
@@ -166,6 +166,26 @@ document.querySelectorAll('[data-prev-step]').forEach(btn => {
   btn.addEventListener('click', () => { if(currentAppStep > 0) showAppStep(currentAppStep - 1); });
 });
 if(appSteps.length) showAppStep(0);
+
+/* =========================================================
+   SCROLL REVEAL — fade + rise sections and card grids in as
+   they enter the viewport. Respects prefers-reduced-motion.
+   ========================================================= */
+(function(){
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const targets = document.querySelectorAll('.reveal, .reveal-stagger');
+  if(!targets.length) return;
+  if(prefersReduced){ targets.forEach(t => t.classList.add('in-view')); return; }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('in-view');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  targets.forEach(t => io.observe(t));
+})();
 
 /* ---------- generic accordion ---------- */
 document.querySelectorAll('.accordion-trigger').forEach(trigger => {
