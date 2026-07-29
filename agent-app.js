@@ -179,6 +179,44 @@
   document.getElementById('agent-quote-modal-close').addEventListener('click', () => modal.style.display = 'none');
   modal.addEventListener('click', (e) => { if(e.target === modal) modal.style.display = 'none'; });
 
+  /* ---------- send quote modal ---------- */
+  const sendQuoteModal = document.getElementById('send-quote-modal');
+  const sendQuoteForm = document.getElementById('send-quote-form');
+  const sendQuoteStatus = document.getElementById('send-quote-status');
+  document.getElementById('send-quote-modal-close').addEventListener('click', () => sendQuoteModal.style.display = 'none');
+  sendQuoteModal.addEventListener('click', (e) => { if(e.target === sendQuoteModal) sendQuoteModal.style.display = 'none'; });
+
+  sendQuoteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const quoteRef = sendQuoteForm.dataset.quoteRef;
+    const custEmail = document.getElementById('send-quote-email').value.trim();
+    const custName = document.getElementById('send-quote-name').value.trim();
+    const submitBtn = sendQuoteForm.querySelector('button[type="submit"]');
+
+    if(!custEmail) { sendQuoteStatus.innerHTML = '<div class="dfl-alert dfl-alert-error">Customer email required</div>'; return; }
+
+    sendQuoteStatus.innerHTML = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    try {
+      await callFn('send-quote', {
+        agentEmail,
+        agentCode,
+        quoteRef,
+        customerEmail: custEmail,
+        customerName: custName
+      });
+      sendQuoteStatus.innerHTML = '<div class="dfl-alert dfl-alert-success">Quote sent successfully!</div>';
+      setTimeout(() => { sendQuoteModal.style.display = 'none'; }, 1500);
+    } catch(err) {
+      sendQuoteStatus.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send Quote';
+    }
+  });
+
   function openQuoteModal(offer){
     const slicesSummary = offer.slices.map(s => {
       const first = s.segments[0], last = s.segments[s.segments.length-1];
@@ -417,9 +455,21 @@
           <div><b>${q.mtrRef}</b><div class="muted">${q.customerEmail}</div></div>
           <div>${dflFmtMoney(q.totalAmount, q.totalCurrency)}</div>
           <div><span class="pill pill-blue">${q.status.replace(/_/g,' ')}</span>${agentRole==='lead' ? `<div class="muted mt-8">${q.agentName}</div>` : ''}</div>
-          <div class="muted">${new Date(q.createdAt).toLocaleDateString()}</div>
+          <div><button type="button" class="quote-send-btn" data-ref="${q.mtrRef}" data-customer-email="${q.customerEmail}" style="font-size:12px; padding:4px 8px; background:var(--gold); color:#1a1400; border:none; border-radius:4px; cursor:pointer; font-weight:600;">Send</button></div>
         </div>
       `).join('') : `<p class="muted center" style="padding:24px 0;">No quotes yet.</p>`;
+      host.querySelectorAll('.quote-send-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const modal = document.getElementById('send-quote-modal');
+          const ref = btn.dataset.ref;
+          const custEmail = btn.dataset.customerEmail;
+          document.getElementById('send-quote-email').value = custEmail;
+          document.getElementById('send-quote-name').value = '';
+          document.getElementById('send-quote-status').innerHTML = '';
+          document.getElementById('send-quote-form').dataset.quoteRef = ref;
+          modal.style.display = 'flex';
+        });
+      });
     } catch(err){
       host.innerHTML = `<div class="dfl-alert dfl-alert-error">${err.message}</div>`;
     }

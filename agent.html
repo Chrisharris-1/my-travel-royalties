@@ -192,6 +192,19 @@
   </div>
 </div>
 
+<div id="send-quote-modal" class="dfl-modal-overlay" style="display:none;">
+  <div class="dfl-modal" style="max-width:480px;">
+    <button type="button" id="send-quote-modal-close" class="dfl-modal-close">✕</button>
+    <h3 style="margin:0 0 12px 0; font-family:var(--head); font-size:18px;">Send Quote to Customer</h3>
+    <form id="send-quote-form">
+      <div class="dfl-field" style="margin-bottom:12px;"><label>Customer name</label><input id="send-quote-name" type="text" placeholder="John Smith"></div>
+      <div class="dfl-field" style="margin-bottom:16px;"><label>Customer email</label><input id="send-quote-email" type="email" placeholder="john@example.com" required></div>
+      <div id="send-quote-status" class="mt-8"></div>
+      <button type="submit" class="btn btn-orange" style="width:100%; margin-top:16px;">Send Quote</button>
+    </form>
+  </div>
+</div>
+
 <div id="agent-quote-modal" class="dfl-modal-overlay" style="display:none;">
   <div class="dfl-modal">
     <button type="button" id="agent-quote-modal-close" class="dfl-modal-close">✕</button>
