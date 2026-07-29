@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Executive Dashboard — My Travel Royalties</title>
+<link rel="stylesheet" href="ota.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<style>
+  body { background:var(--bg); }
+  .exec-shell { max-width:1400px; margin:0 auto; padding:32px 20px; }
+  .exec-header { display:flex; align-items:center; gap:16px; padding:20px 0 28px; border-bottom:1px solid var(--line); margin-bottom:28px; }
+  .exec-header img { height:36px; }
+  .exec-header h1 { font-family:var(--head); font-size:26px; margin:0; flex:1; }
+  .exec-header .status { font-size:12px; color:var(--slate); }
+  .gate-card { max-width:420px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:32px; }
+  .gate-card h2 { font-family:var(--head); margin-bottom:6px; }
+  .metric-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:24px; }
+  .metric-card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .metric-card h3 { margin:0 0 12px 0; font-size:12px; font-weight:600; color:var(--slate); text-transform:uppercase; }
+  .metric-val { font-size:24px; font-weight:700; color:var(--ink); }
+  .metric-sub { font-size:12px; color:var(--slate); margin-top:4px; }
+  .agent-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px; margin-bottom:24px; }
+  .agent-card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .agent-card h4 { margin:0 0 12px 0; font-family:var(--head); font-size:14px; color:var(--ink); }
+  .agent-stat { display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid #f0ebe5; }
+  .agent-stat:last-child { border-bottom:none; }
+  .agent-label { color:var(--slate); }
+  .agent-value { font-weight:600; color:var(--ink); }
+  .chart-container { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:24px; }
+  .chart-container h3 { margin:0 0 16px 0; font-size:14px; font-weight:600; }
+  .chat-monitor { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .chat-monitor h3 { margin:0 0 12px 0; font-size:12px; font-weight:600; color:var(--slate); text-transform:uppercase; }
+  .chat-thread { background:#f9f7f4; border:1px solid var(--line); border-radius:6px; padding:8px; margin-bottom:8px; font-size:11px; }
+  .chat-thread .channel { color:var(--slate); font-weight:600; margin-bottom:4px; }
+  .chat-msg { color:var(--ink); line-height:1.4; max-height:60px; overflow:hidden; }
+  .refresh-btn { padding:8px 16px; background:var(--gold); color:#1a1400; border:none; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+  .refresh-btn:disabled { opacity:0.5; cursor:not-allowed; }
+</style>
+</head>
+<body>
+
+<div id="exec-gate" class="gate-card">
+  <h2>Executive Dashboard</h2>
+  <p class="muted" style="font-size:13.5px; margin-bottom:16px;">Confidential management reporting — executive access only.</p>
+  <form id="exec-gate-form">
+    <div class="dfl-field" style="margin-bottom:12px;"><label>Email</label><input id="exec-email-input" type="email" value="management@mytravelroyalties.com" required></div>
+    <div class="dfl-field" style="margin-bottom:16px;"><label>Access code</label><input id="exec-code-input" required placeholder="Enter code"></div>
+    <div id="exec-gate-error" class="dfl-alert dfl-alert-error" style="display:none;"></div>
+    <button type="submit" class="btn btn-orange" style="width:100%;">Access Executive Dashboard</button>
+  </form>
+</div>
+
+<div id="exec-shell" class="exec-shell" style="display:none;">
+  <div class="exec-header">
+    <img src="logo-mark.png" alt="MTR">
+    <div>
+      <h1>Executive Dashboard</h1>
+      <div class="status">Real-time monitoring — Hidden from agents</div>
+    </div>
+    <button type="button" class="refresh-btn" id="exec-refresh-btn">Refresh</button>
+    <button type="button" style="padding:8px 12px; background:none; border:none; cursor:pointer; font-weight:600; color:var(--slate);" onclick="document.getElementById('exec-gate').style.display='block'; document.getElementById('exec-shell').style.display='none';">Sign Out</button>
+  </div>
+
+  <div id="exec-loading" style="text-align:center; padding:40px; color:var(--slate);">Loading dashboard…</div>
+
+  <div id="exec-content" style="display:none;">
+    <!-- TEAM SUMMARY -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <h3>Today's Team Revenue</h3>
+        <div class="metric-val" id="exec-today-sales">$0</div>
+        <div class="metric-sub" id="exec-today-target">Target: $0</div>
+      </div>
+      <div class="metric-card">
+        <h3>Today's Progress</h3>
+        <div class="metric-val" id="exec-today-pct">0%</div>
+        <div class="metric-sub" id="exec-today-calls">0 calls logged</div>
+      </div>
+      <div class="metric-card">
+        <h3>Live ARPC (Today)</h3>
+        <div class="metric-val">$<span id="exec-arpc-today">0</span></div>
+        <div class="metric-sub">Average revenue per call</div>
+      </div>
+      <div class="metric-card">
+        <h3>Month-to-Date</h3>
+        <div class="metric-val" id="exec-month-sales">$0</div>
+        <div class="metric-sub" id="exec-month-pct">0% of target</div>
+      </div>
+    </div>
+
+    <!-- AGENT PERFORMANCE CARDS -->
+    <h3 style="margin:24px 0 16px 0; font-size:16px; font-weight:600;">Agent Performance</h3>
+    <div class="agent-grid" id="exec-agent-grid">
+      <div style="text-align:center; padding:40px; color:var(--slate);">Loading agents…</div>
+    </div>
+
+    <!-- CHARTS -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px;">
+      <div class="chart-container">
+        <h3>Daily ARPC Trend (Last 7 Days)</h3>
+        <canvas id="arpc-daily-chart"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Agent Sales Progress (MTD)</h3>
+        <canvas id="sales-mtd-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- HIDDEN CHAT MONITORING -->
+    <div class="chat-monitor">
+      <h3>📊 Team Communications Monitor (Hidden)</h3>
+      <div style="font-size:11px; color:var(--slate); margin-bottom:12px;">Last messages from all channels</div>
+      <div id="exec-chat-feed" style="max-height:300px; overflow-y:auto;">
+        <div style="text-align:center; padding:20px; color:var(--slate);">Loading chat data…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="duffel-app.js"></script>
+<script>
+(function(){
+  const gate = document.getElementById('exec-gate');
+  const shell = document.getElementById('exec-shell');
+  const form = document.getElementById('exec-gate-form');
+  const errorEl = document.getElementById('exec-gate-error');
+  const refreshBtn = document.getElementById('exec-refresh-btn');
+
+  let userEmail = '', userCode = '';
+  let arpcChart = null, salesChart = null;
+
+  async function callFn(name, body) {
+    const res = await fetch('/.netlify/functions/' + name, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.error) throw new Error((json && json.message) || 'Request failed');
+    return json;
+  }
+
+  async function loadExecutiveDashboard() {
+    try {
+      document.getElementById('exec-content').style.display = 'none';
+      document.getElementById('exec-loading').style.display = 'block';
+
+      const res = await callFn('exec-metrics', { email: userEmail, code: userCode });
+      const data = res.data;
+
+      // Team summary
+      document.getElementById('exec-today-sales').textContent = '$' + data.agents.reduce((a,b) => a + b.todaysSales, 0).toLocaleString('en-US', {minimumFractionDigits: 2});
+      const todayTarget = data.agents.reduce((a,b) => a + b.dailyTarget, 0);
+      document.getElementById('exec-today-target').textContent = 'Target: $' + Math.round(todayTarget).toLocaleString();
+      const todayTotal = data.agents.reduce((a,b) => a + b.todaysSales, 0);
+      const todayPct = todayTarget > 0 ? (todayTotal / todayTarget) * 100 : 0;
+      document.getElementById('exec-today-pct').textContent = todayPct.toFixed(1) + '%';
+      const todayCalls = data.agents.reduce((a,b) => a + b.todaysCallCount, 0);
+      document.getElementById('exec-today-calls').textContent = todayCalls + ' calls logged';
+      const todayARPC = todayCalls > 0 ? todayTotal / todayCalls : 0;
+      document.getElementById('exec-arpc-today').textContent = todayARPC.toFixed(2);
+
+      document.getElementById('exec-month-sales').textContent = '$' + data.agents.reduce((a,b) => a + b.monthSales, 0).toLocaleString('en-US', {minimumFractionDigits: 2});
+      const monthTarget = data.agents.reduce((a,b) => a + b.monthlyTarget, 0);
+      const monthTotal = data.agents.reduce((a,b) => a + b.monthSales, 0);
+      const monthPct = monthTarget > 0 ? (monthTotal / monthTarget) * 100 : 0;
+      document.getElementById('exec-month-pct').textContent = monthPct.toFixed(1) + '% of target';
+
+      // Agent cards
+      const agentGrid = document.getElementById('exec-agent-grid');
+      agentGrid.innerHTML = data.agents.map(a => `
+        <div class="agent-card">
+          <h4>${a.name}</h4>
+          <div class="agent-stat"><span class="agent-label">Today Sales</span><span class="agent-value">$${a.todaysSales.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+          <div class="agent-stat"><span class="agent-label">Today Target</span><span class="agent-value">$${Math.round(a.dailyTarget).toLocaleString()}</span></div>
+          <div class="agent-stat"><span class="agent-label">Progress</span><span class="agent-value" style="color:${a.todaysSales >= a.dailyTarget ? '#22c55e' : '#ef4444'};">${(a.dailyTarget > 0 ? (a.todaysSales / a.dailyTarget) * 100 : 0).toFixed(0)}%</span></div>
+          <div class="agent-stat"><span class="agent-label">Calls Today</span><span class="agent-value">${a.todaysCallCount}</span></div>
+          <div class="agent-stat"><span class="agent-label">ARPC Today</span><span class="agent-value">$${a.todaysARPC.toFixed(2)}</span></div>
+          <div class="agent-stat"><span class="agent-label">Month Sales</span><span class="agent-value">$${a.monthSales.toLocaleString('en-US', {minimumFractionDigits: 2})}</span></div>
+          <div class="agent-stat"><span class="agent-label">Month Target</span><span class="agent-value">$${a.monthlyTarget}</span></div>
+          <div class="agent-stat"><span class="agent-label">ARPC Month</span><span class="agent-value">$${a.monthARPC.toFixed(2)}</span></div>
+        </div>
+      `).join('');
+
+      // ARPC daily trend (last 7 days, all agents combined)
+      const dailyArpc = {};
+      for (const agent of data.agents) {
+        for (const date in agent.dailyBreakdown) {
+          if (!dailyArpc[date]) dailyArpc[date] = { sales: 0, calls: 0 };
+          dailyArpc[date].sales += agent.dailyBreakdown[date].sales;
+          dailyArpc[date].calls += agent.dailyBreakdown[date].calls;
+        }
+      }
+      const last7Days = Object.entries(dailyArpc).sort((a,b) => new Date(a[0]) - new Date(b[0])).slice(-7);
+      const arpcData = last7Days.map(([date, d]) => d.calls > 0 ? (d.sales / d.calls) : 0);
+      const dateLabels = last7Days.map(([date]) => new Date(date).toLocaleDateString('en-US', {month:'short', day:'numeric'}));
+
+      if (arpcChart) arpcChart.destroy();
+      arpcChart = new Chart(document.getElementById('arpc-daily-chart'), {
+        type: 'line',
+        data: {
+          labels: dateLabels,
+          datasets: [{
+            label: 'Avg Revenue Per Call',
+            data: arpcData.map(v => v.toFixed(2)),
+            borderColor: '#d4af37',
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            tension: 0.4,
+            fill: true,
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+
+      // Sales MTD chart
+      if (salesChart) salesChart.destroy();
+      salesChart = new Chart(document.getElementById('sales-mtd-chart'), {
+        type: 'bar',
+        data: {
+          labels: data.agents.map(a => a.name),
+          datasets: [{
+            label: 'MTD Sales',
+            data: data.agents.map(a => a.monthSales),
+            backgroundColor: '#d4af37',
+          }, {
+            label: 'MTD Target',
+            data: data.agents.map(a => a.monthlyTarget),
+            backgroundColor: '#e5e0d9',
+          }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      });
+
+      // Chat monitoring (hidden)
+      const chatFeed = document.getElementById('exec-chat-feed');
+      let chatHTML = '';
+      for (const chat of data.chats) {
+        const recentMsgs = chat.messages.slice(-3);
+        for (const msg of recentMsgs) {
+          chatHTML += `<div class="chat-thread">
+            <div class="channel">${chat.channel}</div>
+            <div class="chat-msg"><strong>${msg.fromName}:</strong> ${msg.text.slice(0, 80)}${msg.text.length > 80 ? '...' : ''}</div>
+          </div>`;
+        }
+      }
+      chatFeed.innerHTML = chatHTML || '<div style="text-align:center; padding:20px; color:var(--slate);">No messages yet</div>';
+
+      document.getElementById('exec-loading').style.display = 'none';
+      document.getElementById('exec-content').style.display = 'block';
+    } catch(err){
+      document.getElementById('exec-loading').innerHTML = '<div class="dfl-alert dfl-alert-error">' + err.message + '</div>';
+    }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('exec-email-input').value.trim();
+    const code = document.getElementById('exec-code-input').value.trim();
+    errorEl.style.display = 'none';
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+
+    try {
+      await callFn('agent-login', { email, code });
+      userEmail = email;
+      userCode = code;
+      gate.style.display = 'none';
+      shell.style.display = 'block';
+      await loadExecutiveDashboard();
+    } catch(err){
+      errorEl.textContent = err.message;
+      errorEl.style.display = 'block';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Access Executive Dashboard';
+    }
+  });
+
+  refreshBtn.addEventListener('click', async () => {
+    refreshBtn.disabled = true;
+    await loadExecutiveDashboard();
+    refreshBtn.disabled = false;
+  });
+
+  // Auto-refresh every 30 seconds
+  setInterval(() => {
+    if(shell.style.display !== 'none') {
+      loadExecutiveDashboard();
+    }
+  }, 30000);
+})();
+</script>
+</body>
+</html>
