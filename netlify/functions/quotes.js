@@ -7,20 +7,22 @@
 // a human to complete the real booking. Turning a verified quote into a
 // real, ticketed Duffel order remains a deliberate separate step.
 //
-// POST { action: "create", offer, markup, passenger, billingAddress, customerEmail, agentName, agentCode }
-//   -> stores a quote, generates MTR-XXXXXX, best-effort emails the customer
-// GET  ?ref=MTR-XXXXXX
-//   -> fetch a quote by reference (used by My Trips + the verification page)
+// POST { action: "create", offer, markup, passenger, billingAddress, customerEmail, agentEmail, agentCode }
+// -> validates the agent (see _agent-auth.js), stores a quote, generates
+//    MTR-XXXXXX, best-effort emails the customer
+// GET ?ref=MTR-XXXXXX
+// -> fetch a quote by reference (used by My Trips + the verification page)
 // POST { action: "confirm", ref }
-//   -> customer confirms the itinerary/passenger/price details are correct
+// -> customer confirms the itinerary/passenger/price details are correct
 // POST { action: "cancel", ref }
-//   -> customer (or agent) flags the quote as not to proceed
+// -> customer (or agent) flags the quote as not to proceed
 // POST { action: "card-verify-result", ref, setupIntentId }
-//   -> looks the SetupIntent up on Stripe's side (never trusts the browser),
-//      and sets status to card_verified / pending_manual_review / payment_declined
+// -> looks the SetupIntent up on Stripe's side (never trusts the browser),
+// and sets status to card_verified / pending_manual_review / payment_declined
 const { getStore, connectLambda } = require('@netlify/blobs');
 const { jsonResponse, errorResponse, handleOptions } = require('./_duffel-client');
 const { stripeRequest } = require('./_stripe-client');
+const { findAgent } = require('./_agent-auth');
 
 const REF_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L — avoids confusion when read aloud
 
@@ -84,26 +86,26 @@ function flightDetailsHtml(offer) {
           const airline = (seg.marketing_carrier && seg.marketing_carrier.name) || (offer.owner && offer.owner.name) || 'Airline';
           const flightNo = seg.marketing_carrier_flight_number || '';
           return `
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;margin:0 0 12px;">
-            <tr>
-              <td style="padding:14px 16px;">
-                <div style="font-size:13px;color:#6f6659;font-weight:600;letter-spacing:.03em;text-transform:uppercase;">${airline}${flightNo ? ' &middot; Flight ' + flightNo : ''}</div>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
-                  <tr>
-                    <td style="font-size:20px;font-weight:700;color:#1b1712;">${seg.origin.iata_code}</td>
-                    <td style="text-align:center;color:#6f6659;font-size:12px;padding:0 10px;">&#9992;</td>
-                    <td style="font-size:20px;font-weight:700;color:#1b1712;text-align:right;">${seg.destination.iata_code}</td>
-                  </tr>
-                  <tr>
-                    <td style="font-size:13px;color:#6f6659;">${fmtTime(seg.departing_at)}</td>
-                    <td></td>
-                    <td style="font-size:13px;color:#6f6659;text-align:right;">${fmtTime(seg.arriving_at)}</td>
-                  </tr>
-                </table>
-                <div style="font-size:12.5px;color:#6f6659;margin-top:8px;">${fmtDateTime(seg.departing_at)}</div>
-              </td>
-            </tr>
-          </table>`;
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;margin:0 0 12px;">
+<tr>
+<td style="padding:14px 16px;">
+<div style="font-size:13px;color:#6f6659;font-weight:600;letter-spacing:.03em;text-transform:uppercase;">${airline}${flightNo ? ' &middot; Flight ' + flightNo : ''}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
+<tr>
+<td style="font-size:20px;font-weight:700;color:#1b1712;">${seg.origin.iata_code}</td>
+<td style="text-align:center;color:#6f6659;font-size:12px;padding:0 10px;">&#9992;</td>
+<td style="font-size:20px;font-weight:700;color:#1b1712;text-align:right;">${seg.destination.iata_code}</td>
+</tr>
+<tr>
+<td style="font-size:13px;color:#6f6659;">${fmtTime(seg.departing_at)}</td>
+<td></td>
+<td style="font-size:13px;color:#6f6659;text-align:right;">${fmtTime(seg.arriving_at)}</td>
+</tr>
+</table>
+<div style="font-size:12.5px;color:#6f6659;margin-top:8px;">${fmtDateTime(seg.departing_at)}</div>
+</td>
+</tr>
+</table>`;
         })
         .join('');
       return segs;
@@ -123,81 +125,81 @@ async function sendVerificationEmail(quote) {
   const lastSeg = quote.offer.slices[0].segments[quote.offer.slices[0].segments.length - 1];
 
   const html = `
-  <div style="font-family:Arial,Helvetica,sans-serif;background:#f7f3ea;padding:24px 12px;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e6ddc9;border-radius:10px;overflow:hidden;">
+<div style="font-family:Arial,Helvetica,sans-serif;background:#f7f3ea;padding:24px 12px;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e6ddc9;border-radius:10px;overflow:hidden;">
 
-      <div style="background:#ffffff;padding:24px 28px;border-bottom:1px solid #e6ddc9;">
-        <div style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:700;color:#1b1712;">My Travel Royalties</div>
-        <div style="font-size:12px;color:#6f6659;margin-top:2px;">Reference ${quote.mtrRef}</div>
-      </div>
+<div style="background:#ffffff;padding:24px 28px;border-bottom:1px solid #e6ddc9;">
+<div style="font-family:Georgia,'Playfair Display',serif;font-size:20px;font-weight:700;color:#1b1712;">My Travel Royalties</div>
+<div style="font-size:12px;color:#6f6659;margin-top:2px;">Reference ${quote.mtrRef}</div>
+</div>
 
-      <div style="padding:26px 28px;">
-        <h2 style="font-family:Georgia,'Playfair Display',serif;font-size:20px;color:#1b1712;margin:0 0 12px;">Please review your flight before we book it</h2>
-        <p style="font-size:14px;color:#3a342c;line-height:1.6;margin:0 0 14px;">
-          Hi ${p.given_name}, your travel advisor${quote.agentName ? ' (' + quote.agentName + ')' : ''} has put together the itinerary and price below.
-          <b>Nothing has been booked or charged yet.</b> Before you confirm, please check carefully that the following are correct:
-        </p>
-        <ul style="font-size:13.5px;color:#3a342c;line-height:1.7;margin:0 0 20px;padding-left:20px;">
-          <li>Passenger name (must exactly match the government ID or passport used to travel)</li>
-          <li>Origin, destination and travel dates</li>
-          <li>Airline, flight number(s) and departure/arrival times</li>
-          <li>Total price and currency</li>
-        </ul>
+<div style="padding:26px 28px;">
+<h2 style="font-family:Georgia,'Playfair Display',serif;font-size:20px;color:#1b1712;margin:0 0 12px;">Please review your flight before we book it</h2>
+<p style="font-size:14px;color:#3a342c;line-height:1.6;margin:0 0 14px;">
+Hi ${p.given_name}, your travel advisor${quote.agentName ? ' (' + quote.agentName + ')' : ''} has put together the itinerary and price below.
+<b>Nothing has been booked or charged yet.</b> Before you confirm, please check carefully that the following are correct:
+</p>
+<ul style="font-size:13.5px;color:#3a342c;line-height:1.7;margin:0 0 20px;padding-left:20px;">
+<li>Passenger name (must exactly match the government ID or passport used to travel)</li>
+<li>Origin, destination and travel dates</li>
+<li>Airline, flight number(s) and departure/arrival times</li>
+<li>Total price and currency</li>
+</ul>
 
-        <div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px;">Flight Details</div>
-        ${flightDetailsHtml(quote.offer)}
+<div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px;">Flight Details</div>
+${flightDetailsHtml(quote.offer)}
 
-        <div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Traveler Details</div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
-          <tr>
-            <td style="padding:14px 16px;font-size:13.5px;color:#1b1712;">
-              <div style="font-weight:700;">${p.given_name} ${p.family_name}</div>
-              <div style="color:#6f6659;margin-top:4px;">Date of birth: ${p.born_on}</div>
-              <div style="color:#6f6659;margin-top:2px;">Email: ${p.email || quote.customerEmail}</div>
-              <div style="color:#6f6659;margin-top:2px;">Phone: ${p.phone_number}</div>
-            </td>
-          </tr>
-        </table>
+<div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Traveler Details</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
+<tr>
+<td style="padding:14px 16px;font-size:13.5px;color:#1b1712;">
+<div style="font-weight:700;">${p.given_name} ${p.family_name}</div>
+<div style="color:#6f6659;margin-top:4px;">Date of birth: ${p.born_on}</div>
+<div style="color:#6f6659;margin-top:2px;">Email: ${p.email || quote.customerEmail}</div>
+<div style="color:#6f6659;margin-top:2px;">Phone: ${p.phone_number}</div>
+</td>
+</tr>
+</table>
 
-        <div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Price Details</div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
-          <tr>
-            <td style="padding:14px 16px;font-size:13.5px;color:#3a342c;">Base fare</td>
-            <td style="padding:14px 16px;font-size:13.5px;color:#3a342c;text-align:right;">${fmtMoney(quote.fareAmount, quote.fareCurrency)}</td>
-          </tr>
-          <tr>
-            <td style="padding:0 16px 14px;font-size:13.5px;color:#3a342c;border-bottom:1px solid #e6ddc9;">Service fee</td>
-            <td style="padding:0 16px 14px;font-size:13.5px;color:#3a342c;text-align:right;border-bottom:1px solid #e6ddc9;">${fmtMoney(quote.markupAmount, quote.fareCurrency)}</td>
-          </tr>
-          <tr>
-            <td style="padding:14px 16px;font-size:16px;font-weight:800;color:#1b1712;">Total</td>
-            <td style="padding:14px 16px;font-size:16px;font-weight:800;color:#1b1712;text-align:right;">${fmtMoney(quote.totalAmount, quote.totalCurrency)}</td>
-          </tr>
-        </table>
+<div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Price Details</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
+<tr>
+<td style="padding:14px 16px;font-size:13.5px;color:#3a342c;">Base fare</td>
+<td style="padding:14px 16px;font-size:13.5px;color:#3a342c;text-align:right;">${fmtMoney(quote.fareAmount, quote.fareCurrency)}</td>
+</tr>
+<tr>
+<td style="padding:0 16px 14px;font-size:13.5px;color:#3a342c;border-bottom:1px solid #e6ddc9;">Service fee</td>
+<td style="padding:0 16px 14px;font-size:13.5px;color:#3a342c;text-align:right;border-bottom:1px solid #e6ddc9;">${fmtMoney(quote.markupAmount, quote.fareCurrency)}</td>
+</tr>
+<tr>
+<td style="padding:14px 16px;font-size:16px;font-weight:800;color:#1b1712;">Total</td>
+<td style="padding:14px 16px;font-size:16px;font-weight:800;color:#1b1712;text-align:right;">${fmtMoney(quote.totalAmount, quote.totalCurrency)}</td>
+</tr>
+</table>
 
-        ${quote.billingAddress ? `
-        <div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Billing Address</div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
-          <tr><td style="padding:14px 16px;font-size:13.5px;color:#3a342c;">${billingAddressLine(quote.billingAddress)}</td></tr>
-        </table>` : ''}
+${quote.billingAddress ? `
+<div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Billing Address</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e6ddc9;border-radius:8px;">
+<tr><td style="padding:14px 16px;font-size:13.5px;color:#3a342c;">${billingAddressLine(quote.billingAddress)}</td></tr>
+</table>` : ''}
 
-        <div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Terms &amp; Conditions</div>
-        <div style="border:1px solid #e6ddc9;border-radius:8px;padding:14px 16px;font-size:12px;color:#6f6659;line-height:1.7;">
-          Prices shown are quoted by your travel advisor and are not guaranteed until confirmed and a card is verified. Airline fare rules govern refunds, changes and name-change restrictions once a ticket is issued. By clicking Confirm &amp; Pay you confirm the passenger and itinerary details above are accurate; name corrections after ticketing may not be possible with the airline.
-        </div>
+<div style="font-size:13px;font-weight:700;color:#1b1712;text-transform:uppercase;letter-spacing:.03em;margin:20px 0 10px;">Terms &amp; Conditions</div>
+<div style="border:1px solid #e6ddc9;border-radius:8px;padding:14px 16px;font-size:12px;color:#6f6659;line-height:1.7;">
+Prices shown are quoted by your travel advisor and are not guaranteed until confirmed and a card is verified. Airline fare rules govern refunds, changes and name-change restrictions once a ticket is issued. By clicking Confirm &amp; Pay you confirm the passenger and itinerary details above are accurate; name corrections after ticketing may not be possible with the airline.
+</div>
 
-        <div style="text-align:center;margin:28px 0 6px;">
-          <a href="${verifyUrl}" style="display:inline-block;background:#C6A15B;color:#1c1712;font-weight:700;font-size:15px;text-decoration:none;padding:14px 34px;border-radius:6px;">Confirm &amp; Pay</a>
-        </div>
-        <p style="text-align:center;font-size:11.5px;color:#9a9081;margin:8px 0 0;">If anything above is incorrect — especially the spelling of the name — do not confirm; reply to this email instead.</p>
-      </div>
+<div style="text-align:center;margin:28px 0 6px;">
+<a href="${verifyUrl}" style="display:inline-block;background:#C6A15B;color:#1c1712;font-weight:700;font-size:15px;text-decoration:none;padding:14px 34px;border-radius:6px;">Confirm &amp; Pay</a>
+</div>
+<p style="text-align:center;font-size:11.5px;color:#9a9081;margin:8px 0 0;">If anything above is incorrect — especially the spelling of the name — do not confirm; reply to this email instead.</p>
+</div>
 
-      <div style="background:#f7f3ea;padding:16px 28px;font-size:11px;color:#9a9081;">
-        My Travel Royalties &middot; Reference ${quote.mtrRef}
-      </div>
-    </div>
-  </div>
-  `;
+<div style="background:#f7f3ea;padding:16px 28px;font-size:11px;color:#9a9081;">
+My Travel Royalties &middot; Reference ${quote.mtrRef}
+</div>
+</div>
+</div>
+`;
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -298,11 +300,18 @@ exports.handler = async (event) => {
     }
 
     if (input.action === 'create') {
-      const requiredAgentCode = process.env.AGENT_ACCESS_CODE;
-      if (requiredAgentCode && input.agentCode !== requiredAgentCode) {
-        return jsonResponse(401, { error: true, message: 'Invalid agent access code' });
+      // Validate the agent against AGENT_ACCOUNTS (see _agent-auth.js). Fails
+      // closed once configured — a bad/missing email+code is rejected rather
+      // than silently falling back to a free-text agent name.
+      const authResult = findAgent(input.agentEmail, input.agentCode);
+      if (authResult.configured && !authResult.agent) {
+        return jsonResponse(401, { error: true, message: 'Invalid agent email or access code' });
       }
-      const { offer, markup, passenger, customerEmail, agentName, billingAddress } = input;
+      const resolvedAgentName = authResult.agent ? authResult.agent.name : (input.agentName || 'Unknown agent');
+      const resolvedAgentEmail = authResult.agent ? authResult.agent.email : (input.agentEmail || null);
+      const resolvedAgentRole = authResult.agent ? authResult.agent.role : null;
+
+      const { offer, markup, passenger, customerEmail, billingAddress } = input;
       if (!offer || !offer.id || !Array.isArray(offer.slices)) {
         return jsonResponse(400, { error: true, message: 'A valid offer snapshot is required' });
       }
@@ -329,7 +338,9 @@ exports.handler = async (event) => {
         status: 'pending_verification',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        agentName: agentName || 'Unknown agent',
+        agentName: resolvedAgentName,
+        agentEmail: resolvedAgentEmail,
+        agentRole: resolvedAgentRole,
         customerEmail,
         passenger,
         billingAddress,
