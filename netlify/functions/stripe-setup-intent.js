@@ -1,5 +1,6 @@
 // Card verification only — creates and retrieves a Stripe SetupIntent.
 // A SetupIntent validates that a card is real and chargeable WITHOUT
+// redeploy-trigger: pick up STRIPE_SECRET_KEY / STRIPE_PUBLISHABLE_KEY
 // placing any charge or hold on it. The card number/expiry/CVV are typed
 // directly into Stripe's own hosted Elements widget in the customer's
 // browser and confirmed client-side with the publishable key below;
