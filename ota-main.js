@@ -80,57 +80,161 @@ document.querySelectorAll('[data-go-deals]').forEach(f => f.addEventListener('su
 function fmtUSD(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
 
 /* =========================================================
-   HOTELS — filters + mock results
+   HOTELS — now powered by the live LiteAPI (Nuitee Connect) API.
+   Search calls netlify/functions/stays-search.js, which resolves the
+   destination to a Place ID and pulls real-time hotel rates.
    ========================================================= */
 const hotelResults = document.getElementById('hotel-results');
 if(hotelResults){
-  const HOTELS = [
-    { name:"The Aldwyn London", stars:5, rating:9.4, reviews:1820, price:420, img:"hotel,london,suite" },
-    { name:"Marchetti Suites Rome", stars:4, rating:8.9, reviews:960, price:265, img:"hotel,rome,balcony" },
-    { name:"Harbor Point Residences", stars:4, rating:8.6, reviews:1240, price:210, img:"hotel,harbor,view" },
-    { name:"Sable & Stone Hotel", stars:5, rating:9.6, reviews:640, price:540, img:"images/hotel-infinity-pool-sunset.jpg" },
-    { name:"Midtown Central Inn", stars:3, rating:8.1, reviews:2110, price:145, img:"hotel,city,room" },
-  ];
-  function stars(n){ return '★'.repeat(n) + '☆'.repeat(5-n); }
-  function render(maxPrice, minStars){
-    const rows = HOTELS.filter(h => h.price <= maxPrice && h.stars >= minStars);
-    hotelResults.innerHTML = rows.length ? rows.map(h => `
-      <div class="hotel-card">
-        <div class="hotel-img photo-img" style="background-image:url('${h.img.startsWith('images/') ? h.img : 'https://loremflickr.com/300/260/' + h.img}');"></div>
-        <div class="hotel-body">
-          <div class="stars">${stars(h.stars)}</div>
-          <h3 class="h3 mt-8">${h.name}</h3>
-          <div class="muted" style="font-size:13px; margin-top:4px;">City Center · 0.4 mi from downtown</div>
-          <div class="result-tags mt-12">
-            <span class="pill pill-green">Free cancellation</span>
-            <span class="pill pill-blue">Breakfast included</span>
-          </div>
-        </div>
-        <div class="hotel-side">
-          <div class="flex items-center gap-8"><span class="pill pill-blue">${h.rating.toFixed(1)}</span><span class="muted" style="font-size:12px;">${h.reviews.toLocaleString()} reviews</span></div>
-          <div class="result-price">${fmtUSD(h.price)}</div>
-          <div class="muted" style="font-size:12px;">per night</div>
-          <button class="btn btn-orange btn-sm">View Rooms</button>
-        </div>
-      </div>
-    `).join('') : `<p class="muted center" style="padding:40px 0;">No hotels match these filters.</p>`;
-    document.getElementById('hotel-count').textContent = rows.length;
-  }
+  const destInput = document.getElementById('stay-destination-input');
+  const checkinInput = document.getElementById('stay-checkin-input');
+  const checkoutInput = document.getElementById('stay-checkout-input');
+  const guestsSelect = document.getElementById('stay-guests-select');
+  const updateBtn = document.getElementById('stay-update-search-btn');
+  const statusHost = hotelResults;
   const hPrice = document.getElementById('hotel-price-range');
   const hPriceLabel = document.getElementById('hotel-price-label');
   const starInputs = document.querySelectorAll('input[name="stars"]');
+
+  let lastHotels = []; // normalized rows from the most recent live search
+
+  function stars(n){ n = Math.round(n || 0); return '★'.repeat(n) + '☆'.repeat(Math.max(0, 5-n)); }
+  function fmtMoney(amount, currency){
+    const n = Number(amount);
+    if(!isFinite(n)) return '—';
+    return (currency === 'USD' ? '$' : (currency || '') + ' ') + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+
+  // LiteAPI's /hotels/rates response shape can vary slightly by account
+  // config, so this pulls out whichever fields are present rather than
+  // assuming one exact shape.
+  function normalizeHotel(h){
+    const cheapestRoom = (h.roomTypes || []).flatMap(rt => rt.rates || []).sort((a,b) =>
+      (Number(a.retailRate && a.retailRate.total && a.retailRate.total[0] && a.retailRate.total[0].amount) || Infinity) -
+      (Number(b.retailRate && b.retailRate.total && b.retailRate.total[0] && b.retailRate.total[0].amount) || Infinity)
+    )[0];
+    const total = cheapestRoom && cheapestRoom.retailRate && cheapestRoom.retailRate.total && cheapestRoom.retailRate.total[0];
+    const hotelData = h.hotelData || h;
+    return {
+      hotelId: h.hotelId || hotelData.id,
+      name: hotelData.name || h.name || 'Hotel',
+      starRating: hotelData.starRating || hotelData.rating || 0,
+      photo: hotelData.main_photo || hotelData.thumbnail || (hotelData.hotelImages && hotelData.hotelImages[0] && hotelData.hotelImages[0].url) || '',
+      address: (hotelData.address || hotelData.city || ''),
+      price: total ? Number(total.amount) : null,
+      currency: total ? total.currency : 'USD',
+      refundable: !!(cheapestRoom && (cheapestRoom.cancellationPolicies || cheapestRoom.refundableTag === 'RFN')),
+      boardName: cheapestRoom && cheapestRoom.boardName,
+      offerId: cheapestRoom && (cheapestRoom.offerId || cheapestRoom.rateId),
+    };
+  }
+
   function currentMinStars(){
     const checked = Array.from(starInputs).filter(i => i.checked).map(i => Number(i.value));
     return checked.length ? Math.min(...checked) : 0;
   }
-  function refresh(){
-    render(hPrice ? Number(hPrice.value) : 2000, currentMinStars());
-    if(hPriceLabel) hPriceLabel.textContent = fmtUSD(hPrice.value);
+
+  function renderRows(){
+    const maxPrice = hPrice ? Number(hPrice.value) : 100000;
+    const minStars = currentMinStars();
+    const rows = lastHotels.filter(h => (h.price == null || h.price <= maxPrice) && h.starRating >= minStars);
+    hotelResults.innerHTML = rows.length ? rows.map(h => `
+      <div class="hotel-card">
+        <div class="hotel-img photo-img" style="background-image:url('${h.photo || 'https://loremflickr.com/300/260/hotel,room'}');"></div>
+        <div class="hotel-body">
+          <div class="stars">${stars(h.starRating)}</div>
+          <h3 class="h3 mt-8">${h.name}</h3>
+          <div class="muted" style="font-size:13px; margin-top:4px;">${h.address || ''}</div>
+          <div class="result-tags mt-12">
+            ${h.refundable ? '<span class="pill pill-green">Free cancellation</span>' : ''}
+            ${h.boardName ? `<span class="pill pill-blue">${h.boardName}</span>` : ''}
+          </div>
+        </div>
+        <div class="hotel-side">
+          <div class="result-price">${h.price != null ? fmtMoney(h.price, h.currency) : 'See rates'}</div>
+          <div class="muted" style="font-size:12px;">total stay</div>
+          <button class="btn btn-orange btn-sm" data-offer-id="${h.offerId || ''}" data-hotel-name="${h.name.replace(/"/g,'&quot;')}" onclick="window.__stayPrebook(this)">View Rooms</button>
+        </div>
+      </div>
+    `).join('') : `<p class="muted center" style="padding:40px 0;">No hotels match these filters — try widening your search.</p>`;
+    document.getElementById('hotel-count').textContent = rows.length;
   }
-  if(hPrice) hPrice.addEventListener('input', refresh);
-  starInputs.forEach(i => i.addEventListener('change', refresh));
-  refresh();
+
+  async function runSearch(){
+    const guestParts = (guestsSelect && guestsSelect.value ? guestsSelect.value : '2,1,1').split(',').map(Number);
+    const [adults, children, rooms] = guestParts;
+    const checkin = checkinInput ? checkinInput.value : '';
+    const checkout = checkoutInput ? checkoutInput.value : '';
+    const destination = destInput ? destInput.value.trim() : '';
+
+    const headingEl = document.getElementById('stays-heading');
+    const subEl = document.getElementById('stays-subheading');
+    if(headingEl) headingEl.textContent = `Hotels in ${destination}`;
+    if(subEl && checkin && checkout) subEl.textContent = `${checkin} – ${checkout} · ${adults} adult(s), ${rooms} room(s)`;
+
+    statusHost.innerHTML = `<p class="muted center" style="padding:40px 0;">Searching live rates…</p>`;
+    document.getElementById('hotel-count').textContent = '—';
+
+    try {
+      const res = await fetch('/.netlify/functions/stays-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destination, checkin, checkout, adults, children, rooms, currency: 'USD', guestNationality: 'US' }),
+      });
+      const json = await res.json();
+      if(!res.ok || json.error){
+        hotelResults.innerHTML = `<div class="dfl-alert dfl-alert-error">${(json && json.message) || 'Could not load live hotel rates right now.'}</div>`;
+        document.getElementById('hotel-count').textContent = '0';
+        return;
+      }
+      lastHotels = (json.data || []).map(normalizeHotel);
+      renderRows();
+    } catch(err){
+      hotelResults.innerHTML = `<div class="dfl-alert dfl-alert-error">Network error reaching the hotel search service. ${err.message || ''}</div>`;
+      document.getElementById('hotel-count').textContent = '0';
+    }
+  }
+
+  if(hPrice) hPrice.addEventListener('input', () => { if(hPriceLabel) hPriceLabel.textContent = fmtUSD(hPrice.value); renderRows(); });
+  starInputs.forEach(i => i.addEventListener('change', renderRows));
+  if(updateBtn) updateBtn.addEventListener('click', runSearch);
+
+  runSearch();
 }
+
+/* ---------- "View Rooms" -> live prebook confirmation ---------- */
+window.__stayPrebook = async function(btn){
+  const offerId = btn.getAttribute('data-offer-id');
+  const hotelName = btn.getAttribute('data-hotel-name');
+  if(!offerId){
+    alert('No bookable rate is attached to this listing yet.');
+    return;
+  }
+  const original = btn.textContent;
+  btn.textContent = 'Checking…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/.netlify/functions/stays-prebook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offerId }),
+    });
+    const json = await res.json();
+    if(!res.ok || json.error){
+      alert((json && json.message) || 'This rate is no longer available — try another hotel or search again.');
+      return;
+    }
+    const data = json.data || json;
+    const total = data.price != null ? data.price : (data.totalPrice || (data.rate && data.rate.retailRate && data.rate.retailRate.total && data.rate.retailRate.total[0].amount));
+    const currency = data.currency || (data.rate && data.rate.retailRate && data.rate.retailRate.total && data.rate.retailRate.total[0].currency) || 'USD';
+    alert(`${hotelName}\n\nRate confirmed and available.\nTotal: ${currency} ${total}\n\nprebookId: ${data.prebookId}\n\nGuest details + payment collection is the next step to wire up before this can be turned into a confirmed reservation.`);
+  } catch(err){
+    alert('Network error confirming this rate. Please try again.');
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+};
 
 /* =========================================================
    DEALS — countdown timers
