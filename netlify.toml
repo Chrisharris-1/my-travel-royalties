@@ -85,3 +85,8 @@
   from = "/api/payment-intents"
   to = "/.netlify/functions/payment-intents"
   status = 200
+
+[[redirects]]
+  from = "/api/stripe-setup-intent"
+  to = "/.netlify/functions/stripe-setup-intent"
+  status = 200

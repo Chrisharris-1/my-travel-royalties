@@ -145,6 +145,18 @@
           <div class="dfl-field"><label>Date of birth</label><input type="date" name="born_on" required></div>
           <div class="dfl-field"><label>Passenger phone</label><input name="phone_number" required placeholder="+14155550123"></div>
         </div>
+        <h3 class="mt-16" style="font-size:15px;">Billing address (for card verification)</h3>
+        <div class="dfl-field-row">
+          <div class="dfl-field" style="grid-column:1/-1;"><label>Address line 1</label><input name="billing_line1" required placeholder="2782 Sapphire Desert Drive"></div>
+        </div>
+        <div class="dfl-field-row">
+          <div class="dfl-field"><label>City</label><input name="billing_city" required placeholder="Henderson"></div>
+          <div class="dfl-field"><label>State / Province</label><input name="billing_state" placeholder="NV"></div>
+        </div>
+        <div class="dfl-field-row">
+          <div class="dfl-field"><label>Postal code</label><input name="billing_postal_code" placeholder="89052"></div>
+          <div class="dfl-field"><label>Country (2-letter code)</label><input name="billing_country" required placeholder="US" maxlength="2" style="text-transform:uppercase;"></div>
+        </div>
         <h3 class="mt-16" style="font-size:15px;">Send verification to</h3>
         <div class="dfl-field-row">
           <div class="dfl-field" style="grid-column:1/-1;"><label>Customer email</label><input type="email" name="customerEmail" required placeholder="customer@example.com"></div>
@@ -182,6 +194,14 @@
         phone_number: fd.get('phone_number'),
       };
 
+      const billingAddress = {
+        line1: fd.get('billing_line1'),
+        city: fd.get('billing_city'),
+        state: fd.get('billing_state') || undefined,
+        postal_code: fd.get('billing_postal_code') || undefined,
+        country: (fd.get('billing_country') || '').toUpperCase(),
+      };
+
       try {
         const res = await dflApi('quotes', {
           method: 'POST',
@@ -190,6 +210,7 @@
             offer,
             markup: Number(fd.get('markup')) || 0,
             passenger,
+            billingAddress,
             customerEmail: fd.get('customerEmail'),
             agentName,
             agentCode,
