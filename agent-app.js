@@ -46,10 +46,14 @@
         const stops = s.segments.length - 1;
         return `<div class="result-route">${first.origin.iata_code} ${dflFmtTime(first.departing_at)} → ${last.destination.iata_code} ${dflFmtTime(last.arriving_at)} · ${dflFmtDuration(dflParseDurationMins(s.duration))} · ${stops === 0 ? 'Nonstop' : stops + ' stop(s)'} · ${dflFmtDate(first.departing_at)}</div>`;
       }).join('');
+      const logoUrl = o.owner && o.owner.logo_symbol_url;
       return `
       <div class="result-card">
         <div>
-          <div class="result-airline">${o.owner.name}</div>
+          <div class="result-airline">
+            ${logoUrl ? `<img src="${logoUrl}" alt="${o.owner.name}" class="airline-logo" onerror="this.style.display='none'">` : ''}
+            <span>${o.owner.name}</span>
+          </div>
           ${slicesHtml}
         </div>
         <div class="result-price-block">
