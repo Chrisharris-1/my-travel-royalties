@@ -1,3 +1,4 @@
+// redeploy-trigger: pick up RESEND_API_KEY env var
 // Sales-agent quote system. Nothing here ever calls Duffel's order-creation
 // endpoint — it only stores a quote (an offer snapshot + agent markup + the
 // passenger details the agent collected) behind our own "MTR-XXXXXX"
